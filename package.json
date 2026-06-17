@@ -1,0 +1,21 @@
+{
+  "name": "SidVicious_exe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SidVicious_exe -- Search and Generative Image Bot for Discord using Cloudflare Workers",
+  "scripts": {
+    "bot": "node bot.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.55",
+    "discord.js": "^14"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "^4.1.9",
+    "vitest": "^4.1.9"
+  }
+}
