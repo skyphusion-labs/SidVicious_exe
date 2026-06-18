@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a capability or improvement for Slate
+about: Suggest a capability or improvement for SidVicious_exe
 title: 'feat: '
 labels: enhancement
 ---

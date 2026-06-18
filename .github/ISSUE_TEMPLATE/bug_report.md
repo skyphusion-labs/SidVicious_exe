@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something in Slate or the search Worker is not behaving
+about: Something in SidVicious_exe or the search Worker is not behaving
 title: 'bug: '
 labels: bug
 ---
@@ -12,11 +12,11 @@ A clear description of the bug.
 What you expected instead.
 
 **Repro**
-Steps, the command used (`!brief`, `/render`, ...), and the channel context if relevant.
+Steps, the command used (`!image`, `/learn`, ...), and the channel context if relevant.
 
 **Environment**
 - Backend: Claude (CF AI Gateway) or ollama fallback?
-- Where: dischord container, local `node bot.mjs`, or the `vivijure-search` Worker?
+- Where: Docker container, local `node bot.mjs`, or the `sidvicious-search` Worker?
 
 **Logs**
-Relevant lines from the bot log or `wrangler tail` (redact tokens).
+Relevant lines from the roadie log or `wrangler tail` (redact tokens).

@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SidVicious_exe -- Search and Generative Image Bot for Discord using Cloudflare Workers",
+  "description": "SidVicious_exe -- punk rock Discord roadie for search and image generation via Cloudflare",
   "scripts": {
+    "roadie": "node bot.mjs",
     "bot": "node bot.mjs"
   },
   "dependencies": {

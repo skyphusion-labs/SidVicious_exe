@@ -1,28 +1,34 @@
-# Contributing to Slate
+# Contributing to SidVicious_exe
 
-Slate is developed under the SkyPhusion AI-collaborative model: human vision drives the roadmap; Claude (as Strummer) handles implementation. External contributions are welcome, but please read this first.
+External contributions are welcome. Please read this first.
 
 ## How to Contribute
 
 1. **Open an issue before writing code.** Describe the bug or feature. This avoids duplicate work and lets us discuss the right approach.
 2. **Fork the repo and create a branch** from `main`. Branch names: `fix/<thing>`, `feat/<thing>`, `ci/<thing>`.
 3. **Write your changes.** See the development setup below.
-4. **Open a pull request** against `main`. Fill in the PR template -- what changed, why, and how you tested it.
+4. **Open a pull request** against `main`. Fill in the PR template: what changed, why, and how you tested it.
 
 ## Development Setup
 
-### Discord bot
+### Discord roadie
 
 ```bash
 npm install
-cp stacks/dischord.yml .          # reference for required env vars
-# create a local .env with your test bot token + channel IDs
+# reference stacks/dischord.yml for required env vars
+# create a local .env with your Discord token + channel IDs
 node bot.mjs
 ```
 
-There is no unit test suite for the bot (too tightly coupled to live Discord + external APIs). Verify changes by running against a test channel and checking behavior manually.
+Run the smoke test with vitest:
 
-### vivijure-search Worker
+```bash
+npx vitest run
+```
+
+Verify behavioral changes by running against a test channel manually.
+
+### sidvicious-search Worker
 
 ```bash
 cd search-worker
@@ -36,10 +42,9 @@ npm run deploy       # deploy to Cloudflare
 
 ## Code Style
 
-- **No em-dashes (U+2014) or en-dashes (U+2013).** Use commas, semicolons, or parentheses instead. This is a hard lint rule across all SkyPhusion repos.
-- Minimal dependencies. The bot uses only `discord.js` and `@anthropic-ai/sdk`. Do not add framework dependencies.
-- No build step for the bot (`bot.mjs` is plain ESM, runs directly with `node`).
-- No comments that describe *what* the code does -- only comments that explain *why* (hidden constraints, non-obvious invariants). No multi-line comment blocks.
+- **No em-dashes (U+2014) or en-dashes (U+2013).** Use commas, semicolons, or parentheses instead.
+- Minimal dependencies. The roadie uses only `discord.js` and `@anthropic-ai/sdk`. Do not add framework dependencies.
+- No build step (`bot.mjs` is plain ESM, runs directly with `node`).
 - Secrets never in source. All runtime config via environment variables.
 
 ## Conventional Commits
@@ -54,15 +59,13 @@ docs: documentation only
 chore: dependency updates, housekeeping
 ```
 
-Body explains the *why*; keep it factual. One scoped commit per PR where practical.
-
 ## What We're Looking For
 
 Good contributions:
 - Bug fixes with a clear reproduction case
 - New image model entries in the `IMAGE_MODELS` catalog (alias + full ID + label)
-- Improvements to the `SYSTEM_PROMPT` that make Slate a better creative collaborator
-- Additional search tool integrations in the `vivijure-search` Worker
+- Improvements to the `SYSTEM_PROMPT` that fit the punk rock personality
+- Additional search tool integrations in the `sidvicious-search` Worker
 - Documentation improvements
 
 Less likely to merge:

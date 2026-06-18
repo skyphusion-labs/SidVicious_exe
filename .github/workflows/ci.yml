@@ -30,7 +30,7 @@ jobs:
           node-version: 24
 
       # bot.mjs is dependency-free at parse time; a syntax check is the gate.
-      - name: Lint bot
+      - name: Lint roadie
         run: node --check bot.mjs
 
       - name: Install search-worker deps

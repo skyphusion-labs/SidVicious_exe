@@ -10,12 +10,12 @@
 
 ## How it was tested
 
-<!-- SidVicious_exe has no unit suite for the bot (too coupled to live Discord + APIs); verify against a
+<!-- SidVicious_exe has no unit suite for the roadie (too coupled to live Discord + APIs); verify against a
      test channel. For the search Worker, `npm run typecheck` is the gate, plus `wrangler dev`. -->
 
 - [ ] `node --check bot.mjs` passes
 - [ ] `cd search-worker && npm run typecheck` passes (if the Worker changed)
-- [ ] Verified manually in a Discord test channel (if the bot changed)
+- [ ] Verified manually in a Discord test channel (if the roadie changed)
 
 ## Notes
 

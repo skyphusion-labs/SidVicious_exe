@@ -1,25 +1,23 @@
 # SidVicious_exe
 
-**SidVicious_exe** is a Discord bot that allows you to search the web and generate images using Cloudflare AI Workers.
+**SidVicious_exe** is a punk rock Discord roadie for web search and image generation. Talk to it naturally, ask it to look stuff up, or crank out visuals. Everything runs on the unified Cloudflare API.
 
-> Slate started as a simple Discord-to-ollama relay and was redesigned and substantially extended by [Claude Sonnet 4.6](https://anthropic.com) (operating as Strummer, SkyPhusion's AI crew member) into the full platform assistant it is today. The architecture, feature set, knowledge base, search integration, vision support, slash commands, render pipeline, and D1 session persistence were all designed and implemented by Claude as part of the SkyPhusion AI-collaborative development workflow.
+The punk personality is intentional. It reflects the author's view of how a good AI roadie should act: direct, honest, useful, and free of corporate sycophancy. No "I'd be happy to help!", no filler, no talking down to people. Just someone with attitude who actually delivers.
+
+We call it a roadie, not a bot. A bot is a vending machine; this is a collaborator with a job to do.
 
 ---
 
 ## Features
 
-- **Conversational film planning** -- natural multi-person discussion in a Discord channel; Slate participates as a creative collaborator and silently maintains a structured storyboard brief in the background
-- **Claude Sonnet via Cloudflare AI Gateway** -- native Anthropic SDK path; falls back to any ollama-compatible model if the gateway token is not set (no vendor lock-in)
-- **Vision input** -- paste mood boards, reference stills, or concept art directly into the channel; Claude reads the images and incorporates them into the creative discussion
-- **Web search + deep research** -- Claude autonomously calls Brave Search, Tavily (AI-curated research), and Cloudflare Browser Rendering (headless Chrome) when it needs to look something up
-- **Knowledge base** -- `!learn <text or URL>` indexes film references, director styles, cinematography notes, and genre conventions into a Cloudflare Vectorize store; Claude searches it automatically when relevant
-- **Character portraits** -- `!portrait A [description]` generates a character image via skyphusion-llm-public and syncs it to the Vivijure Cast (name, visual bible, and portrait registered in one step)
-- **Scene thumbnails** -- `!thumbnail <scene-id>` generates a quick visual for any scene using its prompt and the project's style prefix
-- **11 image models** -- FLUX Schnell, FLUX 2 Klein, FLUX 2 Dev, Phoenix, Lucid Origin, Dreamshaper, SDXL, GPT Image 1.5, Recraft V4, Nano Banana Pro; switch with `!model <alias>`
-- **Render submission** -- `!render [draft|standard|final]` assembles the storyboard bundle and submits it to Vivijure; Slate notifies the channel automatically when the render completes
-- **D1 cloud session state** -- full storyboard brief, conversation history, brief undo history, and pending render jobs are stored in Cloudflare D1; nothing is lost on restart
-- **Brief undo** -- `!undo` rolls back the last automatic brief extraction if Claude misread something
-- **Slash commands** -- every command is available as a Discord slash command (`/brief`, `/portrait`, `/thumbnail`, `/render`, `/model`, `/undo`, `/learn`, `/reset`)
+- **Punk rock roadie personality** -- raw, direct, irreverent. Helpful underneath the leather jacket.
+- **Claude via Cloudflare** -- Anthropic SDK pointed at `api.cloudflare.com/.../ai/v1/messages`; ollama fallback when `CF_API_TOKEN` is unset
+- **Vision input** -- paste images into the channel; Claude reads them (up to 3 per message, 4 MB each)
+- **Web search + deep research** -- Brave Search, Tavily, and Cloudflare Browser Rendering via the search Worker
+- **Knowledge base** -- `!learn <text or URL>` indexes references into Vectorize
+- **Image generation** -- Workers AI (FLUX, Phoenix, SDXL) and AI Gateway models (GPT Image, Recraft, and more) via `/ai/run`
+- **D1 session state** -- conversation history persists across restarts (optional)
+- **Slash commands** -- `/image`, `/model`, `/learn`, `/reset`
 
 ---
 
@@ -28,105 +26,95 @@
 ```
 Discord channel
       |
-   bot.mjs  (Node 24+, discord.js + @anthropic-ai/sdk)
+   bot.mjs
       |
-      +-- Claude Sonnet 4.6 via Cloudflare AI Gateway (/anthropic path)
+      +-- api.cloudflare.com/client/v4/accounts/{id}/ai/
       |       |
-      |       +-- web_search    --> Brave Search API
-      |       +-- research      --> Tavily API (AI-curated, deep)
-      |       +-- fetch_page    --> vivijure-search Worker (CF Browser Rendering)
-      |       +-- search_knowledge --> vivijure-search Worker (Vectorize)
+      |       +-- v1/messages  --> Claude (anthropic/claude-sonnet-4-6)
+      |       +-- run          --> Workers AI + Gateway image models
       |
-      +-- Cloudflare D1          (session state: brief, history, render jobs)
-      +-- skyphusion-llm-public  (image generation: 11 models)
-      +-- Vivijure API           (Cast sync, portrait upload, storyboard render)
+      +-- D1 (optional)        session history
+      |
+      +-- sidvicious-search Worker (optional)
+              web_search, research, fetch_page, knowledge
 
-vivijure-search  (Cloudflare Worker)
-  /search        Brave (web) or Tavily (research)
-  /fetch         CF Browser Rendering -- puppeteer headless Chrome
-  /knowledge/index   embed + store in Vectorize (bge-large-en-v1.5, 1024-dim)
-  /knowledge/search  embed query + Vectorize similarity search
+All requests use one CF_API_TOKEN + cf-aig-gateway-id header.
 ```
-
-**Key design decisions:**
-
-- Images from Discord attachments are fetched and base64-encoded for the current turn only -- they are not stored in D1 history (too large). The history entry is a text placeholder.
-- The Anthropic tool-use loop runs up to 5 rounds before forcing a final answer.
-- The `briefHistory` stack (max 10 entries) is persisted in the D1 session blob so `!undo` works across restarts.
-- Render jobs are written to a separate `render_jobs` D1 table and polled every 30 seconds; the channel is notified on completion or failure.
-- Slash commands are registered globally on startup (`Routes.applicationCommands`); guild propagation is instant, global can take up to an hour for new registrations.
 
 ---
 
 ## Setup
 
-### Prerequisites
+### 1. Discord application
 
-- Node 24+
-- A Discord application with a bot token ([Discord Developer Portal](https://discord.com/developers/applications))
-  - Bot intents: **MESSAGE CONTENT** on (Privileged Gateway Intents)
-  - OAuth2 scopes: `bot`, `applications.commands`
-  - Bot permissions: Send Messages, Read Message History, Attach Files
-- Cloudflare account with Workers Paid plan (for Vectorize and Browser Rendering)
-- Cloudflare AI Gateway set up with the `skyphusion-llm` gateway name (or your own)
-- D1 database (create one: `wrangler d1 create vivijure-bot-sessions`)
+Create an application at the [Discord Developer Portal](https://discord.com/developers/applications):
 
-### vivijure-search Worker
+- Privileged Gateway Intents: **MESSAGE CONTENT** on
+- OAuth2 scopes: `bot`, `applications.commands` (Discord's terminology for app integrations)
+- Permissions: Send Messages, Read Message History, Attach Files
+
+### 2. Cloudflare credentials
 
 ```bash
-cd search-worker
+wrangler whoami          # copy account id -> CF_ACCOUNT_ID
+wrangler auth token      # copy token      -> CF_API_TOKEN
+```
+
+Your API token needs **AI Gateway** permission. Add **D1 Edit** if you want session persistence.
+
+Create a D1 database (optional):
+
+```bash
+wrangler d1 create sidvicious-sessions   # copy id -> CF_D1_DATABASE_ID
+```
+
+### 3. Run the roadie
+
+```bash
+cp .env.example .env     # fill in DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
 npm install
+npm run roadie
+```
 
-# Create the Vectorize index (one-time)
-npx wrangler vectorize create slate-knowledge --dimensions=1024 --metric=cosine
+That's it for chat + images. The default gateway name is `default`.
 
-# Set secrets
-npx wrangler secret put BRAVE_API_KEY      # https://brave.com/search/api/
-npx wrangler secret put TAVILY_API_KEY     # https://tavily.com/
-npx wrangler secret put SEARCH_SECRET      # any random shared secret
+### 4. Search worker (optional)
 
-# Deploy
+```bash
+cd search-worker && npm install
+npx wrangler vectorize create sidvicious-knowledge --dimensions=1024 --metric=cosine
+npx wrangler secret put BRAVE_API_KEY
+npx wrangler secret put TAVILY_API_KEY
+npx wrangler secret put SEARCH_SECRET
 npm run deploy
 ```
 
-Update `search-worker/wrangler.toml` if you use a different Vectorize index name or CF account.
+Add `SEARCH_WORKER_URL` and `SEARCH_SECRET` to your `.env`.
 
-### Discord bot (local / direct)
-
-```bash
-npm install
-```
-
-Create a `.env` file (or export these variables):
-
-```env
-DISCORD_TOKEN=
-DISCORD_CHANNEL_IDS=          # comma-separated channel IDs to listen in
-DISCORD_MODEL=claude-sonnet-4-6
-VIVIJURE_API_URL=https://vivijure.skyphusion.org
-LLM_API_URL=https://play.skyphusion.org
-CF_ACCESS_CLIENT_ID=          # Cloudflare Access service token
-CF_ACCESS_CLIENT_SECRET=
-CF_D1_TOKEN=                  # CF API token with D1:Write scope
-CF_D1_ACCOUNT_ID=
-CF_D1_DATABASE_ID=
-CF_AIG_TOKEN=                 # CF API token for AI Gateway (omit to use ollama)
-CF_GATEWAY_ENDPOINT=          # e.g. https://gateway.ai.cloudflare.com/v1/<acct>/<name>/compat/chat/completions
-SEARCH_WORKER_URL=https://vivijure-search.skyphusion.workers.dev
-SEARCH_SECRET=                # must match the Worker secret
-```
+### Docker
 
 ```bash
-node bot.mjs
+cp .env.example stacks/.env    # fill in values
+docker compose -p sidvicious -f stacks/dischord.yml up -d
 ```
 
-### Docker (production -- dischord)
+---
 
-See `stacks/dischord.yml`. Create `stacks/.env` with the variables above, then:
+## Environment variables
 
-```bash
-docker compose -p slate -f stacks/dischord.yml up -d
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DISCORD_TOKEN` | yes | Discord application token |
+| `CF_ACCOUNT_ID` | yes* | Cloudflare account ID |
+| `CF_API_TOKEN` | yes* | API token (alias: `CF_AIG_TOKEN`) |
+| `CF_AIG_GATEWAY_ID` | no | Gateway name (default: `default`) |
+| `DISCORD_MODEL` | no | Chat model (default: `anthropic/claude-sonnet-4-6`) |
+| `DISCORD_CHANNEL_IDS` | no | Channels to listen in (empty = DMs + @mentions) |
+| `CF_D1_DATABASE_ID` | no | D1 database for session persistence |
+| `SEARCH_WORKER_URL` | no | Search Worker URL |
+| `SEARCH_SECRET` | no | Search Worker auth secret |
+
+\* Omit both `CF_API_TOKEN` and `CF_ACCOUNT_ID` to use ollama instead (chat only, no images).
 
 ---
 
@@ -134,41 +122,21 @@ docker compose -p slate -f stacks/dischord.yml up -d
 
 | Command | Slash | Description |
 |---------|-------|-------------|
-| `!brief` | `/brief` | Show the current storyboard state |
-| `!portrait <A\|B\|C\|D> [desc]` | `/portrait` | Generate a character portrait and sync to Vivijure Cast |
-| `!thumbnail <scene-id>` | `/thumbnail` | Generate a visual thumbnail for a scene |
-| `!model [name]` | `/model` | List available image models or switch the active one |
-| `!render [quality]` | `/render` | Submit storyboard to Vivijure (draft / standard / final) |
-| `!undo` | `/undo` | Roll back the last automatic brief extraction |
-| `!learn <text or URL>` | `/learn` | Index a film reference into the knowledge base |
-| `!reset` | `/reset` | Clear the project and start fresh |
+| `!image <prompt>` | `/image` | Generate an image |
+| `!model [name]` | `/model` | List or switch image model |
+| `!learn <text or URL>` | `/learn` | Index into knowledge base |
+| `!reset` | `/reset` | Clear conversation history |
 
 **Image model aliases:** `flux-schnell`, `flux2-fast`, `flux2`, `flux2-dev`, `phoenix`, `lucid`, `dreamshaper`, `sdxl`, `gpt-image`, `recraft`, `nano-banana`
 
 ---
 
-## Image attachment (vision)
-
-When the Claude backend is active, you can attach images directly to any message -- mood boards, reference stills, concept art, frame grabs. Slate reads them and incorporates them into the creative discussion. Up to 3 images per message, 4 MB each.
-
----
-
 ## Ollama fallback
 
-Slate is not locked to Claude. To use an ollama model instead:
+1. Omit `CF_API_TOKEN`.
+2. Set `OLLAMA_BASE_URL` and `DISCORD_MODEL` (e.g. `qwen3:8b`).
 
-1. Omit `CF_AIG_TOKEN` from the environment.
-2. Set `OLLAMA_BASE_URL` and `DISCORD_MODEL` to your model.
-
-Image attachments are degraded to a text placeholder in ollama mode (most ollama models are text-only).
-
----
-
-## Credits
-
-**Conrad Rockenhaus** ([SkyPhusion](https://github.com/SkyPhusion)) -- project creator, platform architect, Vivijure founder.
-
-**Claude Sonnet 4.6** (Anthropic) -- operating as *Strummer*, SkyPhusion's AI crew member. Designed and implemented the Slate architecture from an initial Discord-to-ollama relay: CF AI Gateway integration (native Anthropic SDK path), Anthropic tool-use loop, Brave + Tavily + CF Browser Rendering search pipeline, Cloudflare Vectorize knowledge base, Discord vision input, slash command system, D1 session persistence, render submission and polling, character portrait generation and Vivijure Cast sync, `!thumbnail`, `!undo`, and the `vivijure-search` Worker. This project is an example of the SkyPhusion AI-collaborative development model -- human vision, AI execution, shipped together.
+Tool use (search, image gen) requires the Cloudflare backend.
 
 ---
 

@@ -1,16 +1,12 @@
 import { describe, it } from 'vitest';
 
-describe('Slate Orchestrated Studio Suite', () => {
-  it('should verify bot initialization loops', async () => {
+describe('SidVicious_exe', () => {
+  it('should verify roadie initialization', async () => {
+    process.env.VITEST = '1';
     process.env.DISCORD_TOKEN = 'mock-discord-token';
-    process.env.ANTHROPIC_API_KEY = 'mock-anthropic-key';
-    
-    process.env.LOG_SECRET = 'mock-shared-token';
-    process.env.SEARCH_SECRET = 'mock-shared-token';
-    
-    process.env.LOG_WORKER_URL = 'http://localhost:8787';
-    process.env.SEARCH_WORKER_URL = 'http://localhost:8788';
-    
+    process.env.CF_API_TOKEN = 'mock-api-token';
+    process.env.CF_ACCOUNT_ID = 'mock-account-id';
+
     await import('./bot.mjs');
   });
 });

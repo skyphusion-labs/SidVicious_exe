@@ -1,4 +1,4 @@
-name = "vivijure-search"
+name = "sidvicious-search"
 main = "src/index.ts"
 compatibility_date = "2025-06-14"
 compatibility_flags = ["nodejs_compat"]
@@ -11,7 +11,7 @@ binding = "AI"
 
 [[vectorize]]
 binding = "KNOWLEDGE"
-index_name = "slate-knowledge"
+index_name = "sidvicious-knowledge"
 
 # Secrets (set via: wrangler secret put <NAME>)
 #   BRAVE_API_KEY
