@@ -17,7 +17,8 @@
 //   Cloudflare (one token for chat, images, and optional D1):
 //   CF_ACCOUNT_ID               Cloudflare account ID
 //   CF_API_TOKEN                API token with AI Gateway permission (alias: CF_AIG_TOKEN)
-//   CF_AIG_GATEWAY_ID           AI Gateway name (default: default)
+//   CF_AIG_GATEWAY_ID           AI Gateway name (default: skyphusion-llm)
+//   CF_GATEWAY_ENDPOINT         Full compat URL (optional; built from account + gateway id)
 //   CF_D1_DATABASE_ID           D1 database ID (optional, for session persistence)
 //   CF_D1_TOKEN                 D1 token if different from CF_API_TOKEN (optional)
 //
@@ -70,7 +71,8 @@ const CFG = {
   historyLen:     parseInt(process.env.DISCORD_HISTORY ?? '20', 10),
   cfAccountId:    process.env.CF_ACCOUNT_ID     ?? process.env.CF_D1_ACCOUNT_ID ?? '',
   apiToken:       process.env.CF_API_TOKEN      ?? process.env.CF_AIG_TOKEN ?? '',
-  aigGatewayId:   process.env.CF_AIG_GATEWAY_ID ?? 'default',
+  aigGatewayId:   process.env.CF_AIG_GATEWAY_ID ?? 'skyphusion-llm',
+  gatewayEndpoint: process.env.CF_GATEWAY_ENDPOINT ?? '',
   d1Token:        process.env.CF_D1_TOKEN       ?? process.env.CF_API_TOKEN ?? process.env.CF_AIG_TOKEN ?? '',
   d1AccountId:    process.env.CF_D1_ACCOUNT_ID  ?? process.env.CF_ACCOUNT_ID ?? '',
   d1DatabaseId:   process.env.CF_D1_DATABASE_ID ?? '',
@@ -84,7 +86,31 @@ const CF_AI_BASE = CFG.cfAccountId
 const CF_AI_V1   = CF_AI_BASE ? `${CF_AI_BASE}/v1` : '';
 const CF_AI_RUN  = CF_AI_BASE ? `${CF_AI_BASE}/run` : '';
 
+function buildGatewayCompatEndpoint(accountId, gatewayId) {
+  if (!accountId || !gatewayId) return '';
+  return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/compat/chat/completions`;
+}
+
+function anthropicBaseFromGatewayEndpoint(endpoint) {
+  const base = endpoint
+    .replace(/\/compat\/chat\/completions\/?$/, '')
+    .replace(/\/compat\/?$/, '')
+    .replace(/\/$/, '');
+  return `${base}/anthropic`;
+}
+
+const gatewayCompatEndpoint = CFG.gatewayEndpoint
+  || buildGatewayCompatEndpoint(CFG.cfAccountId, CFG.aigGatewayId);
+const anthropicBase = gatewayCompatEndpoint
+  ? anthropicBaseFromGatewayEndpoint(gatewayCompatEndpoint)
+  : '';
+const useGatewayAnthropic = Boolean(anthropicBase);
+
 function normalizeChatModel(model) {
+  if (useGatewayAnthropic) {
+    if (model.startsWith('anthropic/')) return model.slice('anthropic/'.length);
+    return model;
+  }
   if (model.includes('/')) return model;
   if (model.startsWith('claude')) return `anthropic/${model}`;
   return model;
@@ -92,17 +118,18 @@ function normalizeChatModel(model) {
 
 const chatModel = normalizeChatModel(CFG.model);
 
-const anthropic = CFG.apiToken && CF_AI_V1
+const anthropic = CFG.apiToken && (useGatewayAnthropic || CF_AI_V1)
   ? new Anthropic({
-      apiKey:         CFG.apiToken,
-      baseURL:        CF_AI_V1,
-      defaultHeaders: { 'cf-aig-gateway-id': CFG.aigGatewayId },
+      apiKey:  CFG.apiToken,
+      baseURL: useGatewayAnthropic ? anthropicBase : CF_AI_V1,
+      ...(useGatewayAnthropic ? {} : { defaultHeaders: { 'cf-aig-gateway-id': CFG.aigGatewayId } }),
     })
   : null;
 
 const imageGenReady = Boolean(CFG.apiToken && CFG.cfAccountId);
+const chatBackend = anthropic ? (useGatewayAnthropic ? anthropicBase : CF_AI_V1) : CFG.ollamaBase;
 
-log(`Starting SidVicious_exe: model=${chatModel} backend=${anthropic ? CF_AI_V1 : CFG.ollamaBase} gateway=${CFG.aigGatewayId} images=${imageGenReady ? 'on' : 'off'} channels=${CFG.channelIds.size || 'DMs+mentions only'}`);
+log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=${CFG.aigGatewayId} images=${imageGenReady ? 'on' : 'off'} channels=${CFG.channelIds.size || 'DMs+mentions only'}`);
 
 // ---------------------------------------------------------------------------
 // Image model catalog
