@@ -5,8 +5,8 @@
   "type": "module",
   "description": "SidVicious_exe -- punk rock Discord roadie for search and image generation via Cloudflare",
   "scripts": {
-    "roadie": "node bot.mjs",
-    "bot": "node bot.mjs"
+    "roadie": "node --env-file-if-exists=.env bot.mjs",
+    "bot": "node --env-file-if-exists=.env bot.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55",

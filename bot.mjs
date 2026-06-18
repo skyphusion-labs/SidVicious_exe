@@ -36,7 +36,10 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AttachmentBuilder, Client, GatewayIntentBits, Partials, Events, REST, Routes, SlashCommandBuilder } from 'discord.js';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
+import { loadEnvFile } from 'node:process';
+
+if (existsSync('.env')) loadEnvFile('.env');
 
 // ---------------------------------------------------------------------------
 // Logging
