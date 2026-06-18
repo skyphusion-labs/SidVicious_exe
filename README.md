@@ -138,6 +138,36 @@ docker compose -p sidvicious -f stacks/dischord.yml up -d
 
 Tool use (search, image gen) requires the Cloudflare backend.
 
+## Credits
+
+**Conrad Rockenhaus** ([SkyPhusion](https://github.com/SkyPhusion)) -- original wiring, forked over greatly improved wiring from ([Slate]{https://github.com/skyphusion-labs/slate.git)).
+
+**Claude Sonnet 4.6** (Anthropic) -- operating as *Strummer*, SkyPhusion's AI crew member. Designed and implemented the Slate architecture from an initial Discord-to-ollama relay: CF AI Gateway integration (native Anthropic SDK path), Anthropic tool-use loop, Brave + Tavily + CF Browser Rendering search pipeline, Cloudflare Vectorize knowledge base, Discord vision input, slash command system, D1 session persistence, render submission and polling, character portrait generation and Vivijure Cast sync, `!thumbnail`, `!undo`, and the `vivijure-search` Worker. This project is an example of the SkyPhusion AI-collaborative development model -- human vision, AI execution, shipped together.
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development
+setup, code style (no em-dashes; minimal dependencies), and the PR workflow. Security reports go
+through [SECURITY.md](SECURITY.md), not public issues. Release notes live in
+[CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## Using SidVicious_exe (Terms & Privacy)
+
+Slate is a Discord application that reads message content in the channels it joins. By using it you
+agree to the [Terms of Service](TERMS.md); how it handles your data (and the third-party services
+involved) is described in the [Privacy Policy](PRIVACY.md).
+
+---
+
+## License
+
+AGPL-3.0. See [LICENSE](LICENSE).
+
+
 ---
 
 ## License
