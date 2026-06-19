@@ -12,11 +12,11 @@ SkyPhusion-operated instance. Operators of their own instances are responsible f
 
 ## The service
 
-SidVicious_exe is an AI assistant that helps a team plan and develop films inside Discord: it follows the
-conversation, maintains a structured storyboard brief, generates character portraits and scene
-thumbnails, searches the web, and submits projects to the Vivijure render pipeline. It uses the
-Discord Message Content intent and so can read messages in channels where it is active. How SidVicious_exe
-handles your data is described in the [Privacy Policy](PRIVACY.md).
+SidVicious_exe is a punk-rock AI assistant that lives inside Discord: it follows the conversation,
+answers questions (with optional live web search and deep research), generates images on request,
+and keeps a knowledge base of references people feed it with `!learn`. It uses the Discord Message
+Content intent and so can read messages in channels where it is active. How SidVicious_exe handles your
+data is described in the [Privacy Policy](PRIVACY.md).
 
 ## Acceptable use
 
@@ -40,14 +40,14 @@ these Terms.
 - SidVicious_exe produces AI-generated text and images. AI output can be inaccurate, derivative, or
   unsuitable; **you are responsible for reviewing it and for how you use it**, including any
   rights-clearance or disclosure obligations for content you publish or render.
-- SidVicious_exe is a planning and drafting tool, not legal, financial, or professional advice.
+- SidVicious_exe is a chat and content-generation tool, not legal, financial, or professional advice.
 
 ## Availability and changes
 
 SidVicious_exe is provided **"as is" and "as available," without warranties of any kind**, to the fullest
 extent permitted by law. The service may change, be interrupted, or be discontinued at any time.
-Because SidVicious_exe depends on third-party services (Discord, Cloudflare, Anthropic, Brave, Tavily,
-Vivijure), their availability is outside the operator's control.
+Because SidVicious_exe depends on third-party services (Discord, Cloudflare, Anthropic, Brave, Tavily),
+their availability is outside the operator's control.
 
 ## Limitation of liability
 
@@ -68,9 +68,8 @@ conflict-of-laws rules, except where your local consumer-protection law requires
 
 ## Changes to these Terms
 
-We may update these Terms as SidVicious_exe evolves. Material changes will be noted in
-[CHANGELOG.md](CHANGELOG.md) and reflected in the effective date above. Continued use after a change
-means you accept the updated Terms.
+We may update these Terms as SidVicious_exe evolves. Material changes will be reflected in the
+effective date above. Continued use after a change means you accept the updated Terms.
 
 ## Contact
 

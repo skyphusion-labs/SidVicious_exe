@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="SidVicious_exe avatar: glitched punk skull mark">
+  <title>SidVicious_exe</title>
+  <defs>
+    <!-- Background gradient: ink to deep magenta-black -->
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#1a0a14"/>
+      <stop offset="55%" stop-color="#0e0710"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+
+    <!-- Bone-white to faint cyan for the skull face -->
+    <linearGradient id="bone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7f4ea"/>
+      <stop offset="100%" stop-color="#d8d2c2"/>
+    </linearGradient>
+
+    <!-- Grit / static texture -->
+    <filter id="grit" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+      <feColorMatrix in="noise" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0" result="speck"/>
+      <feComposite in="speck" in2="SourceGraphic" operator="in"/>
+    </filter>
+
+    <!-- Displacement for torn/glitched edges on the skull -->
+    <filter id="tear" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="turbulence" baseFrequency="0.012 0.045" numOctaves="2" seed="42" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+
+  <!-- Backdrop -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Hot-pink burst ring behind skull -->
+  <g opacity="0.9">
+    <circle cx="256" cy="244" r="190" fill="none" stroke="#ff1f6b" stroke-width="10" opacity="0.20"/>
+    <circle cx="256" cy="244" r="160" fill="none" stroke="#ff1f6b" stroke-width="22" opacity="0.12"/>
+  </g>
+
+  <!-- RGB-split skull stack: cyan + magenta ghosts, then bone main -->
+  <g filter="url(#tear)">
+    <!-- cyan ghost -->
+    <g transform="translate(-9,5)" opacity="0.85">
+      <use href="#skull" fill="#18e0e0"/>
+    </g>
+    <!-- magenta ghost -->
+    <g transform="translate(9,-4)" opacity="0.85">
+      <use href="#skull" fill="#ff1f6b"/>
+    </g>
+    <!-- main bone skull -->
+    <use href="#skull" fill="url(#bone)"/>
+  </g>
+
+  <!-- Skull definition (drawn once, reused above) -->
+  <defs>
+    <g id="skull">
+      <!-- cranium + jaw silhouette -->
+      <path d="M256 96
+               C167 96 110 156 110 240
+               C110 286 128 318 154 342
+               L154 372 C154 384 164 392 176 392
+               L176 372 L196 372 L196 396 C196 408 206 414 218 414
+               L218 372 L238 372 L238 402 C238 414 248 420 256 420
+               C264 420 274 414 274 402 L274 372 L294 372 L294 414
+               C306 414 316 408 316 396 L316 372 L336 372 L336 392
+               C348 392 358 384 358 372 L358 342
+               C384 318 402 286 402 240
+               C402 156 345 96 256 96 Z"/>
+      <!-- eye sockets (cut as dark shapes) -->
+      <ellipse cx="198" cy="244" rx="40" ry="46" fill="#0a0a0a"/>
+      <ellipse cx="314" cy="244" rx="40" ry="46" fill="#0a0a0a"/>
+      <!-- nose -->
+      <path d="M256 270 L236 318 L256 330 L276 318 Z" fill="#0a0a0a"/>
+      <!-- teeth gaps -->
+      <g fill="#0a0a0a">
+        <rect x="206" y="356" width="14" height="36"/>
+        <rect x="230" y="356" width="14" height="44"/>
+        <rect x="254" y="356" width="14" height="44"/>
+        <rect x="278" y="356" width="14" height="44"/>
+        <rect x="302" y="356" width="14" height="36"/>
+      </g>
+    </g>
+  </defs>
+
+  <!-- Safety pin through the skull (punk mark) -->
+  <g stroke="#18e0e0" stroke-width="11" fill="none" stroke-linecap="round" opacity="0.95"
+     transform="rotate(-24 256 250)">
+    <path d="M176 250 L320 250"/>
+    <path d="M320 250 C346 250 346 222 320 222 L300 222"/>
+    <circle cx="176" cy="250" r="17" fill="#0a0a0a"/>
+  </g>
+
+  <!-- Glitch scanlines across whole icon -->
+  <g fill="#000000" opacity="0.16">
+    <rect x="0" y="0" width="512" height="512" fill="none"/>
+    <g>
+      <rect x="0" y="40"  width="512" height="6"/>
+      <rect x="0" y="96"  width="512" height="6"/>
+      <rect x="0" y="152" width="512" height="6"/>
+      <rect x="0" y="208" width="512" height="6"/>
+      <rect x="0" y="264" width="512" height="6"/>
+      <rect x="0" y="320" width="512" height="6"/>
+      <rect x="0" y="376" width="512" height="6"/>
+      <rect x="0" y="432" width="512" height="6"/>
+      <rect x="0" y="488" width="512" height="6"/>
+    </g>
+  </g>
+
+  <!-- Displaced glitch bars (cyan/magenta data-corruption slices) -->
+  <g opacity="0.85">
+    <rect x="60"  y="170" width="120" height="10" fill="#18e0e0" opacity="0.55"/>
+    <rect x="332" y="300" width="150" height="12" fill="#ff1f6b" opacity="0.55"/>
+    <rect x="150" y="430" width="90"  height="8"  fill="#18e0e0" opacity="0.45"/>
+  </g>
+
+  <!-- .exe tag, lower right -->
+  <g font-family="'Courier New', Courier, monospace" font-weight="bold">
+    <text x="430" y="476" text-anchor="end" font-size="42" fill="#ff1f6b" opacity="0.4" dx="2">.exe</text>
+    <text x="430" y="476" text-anchor="end" font-size="42" fill="#18e0e0" opacity="0.4" dx="-2">.exe</text>
+    <text x="430" y="476" text-anchor="end" font-size="42" fill="#f4f0e6">.exe</text>
+  </g>
+
+  <!-- Fine static speckle overlay -->
+  <rect width="512" height="512" fill="#f4f0e6" filter="url(#grit)" opacity="0.06"/>
+
+  <!-- Frame -->
+  <rect x="6" y="6" width="500" height="500" rx="14" fill="none" stroke="#ff1f6b" stroke-width="4" opacity="0.5"/>
+</svg>

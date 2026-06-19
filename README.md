@@ -1,6 +1,10 @@
 # SidVicious_exe
 
+![SidVicious_exe](assets/banner.svg)
+
 **SidVicious_exe** is a punk rock Discord roadie for web search and image generation. Talk to it naturally, ask it to look stuff up, or crank out visuals. Everything runs on the unified Cloudflare API.
+
+> Brand kit: the square mark lives at [`assets/avatar.svg`](assets/avatar.svg) (drop it in as the Discord application icon); the header above is [`assets/banner.svg`](assets/banner.svg). Both are hand-authored, dependency-free SVG.
 
 The punk personality is intentional. It reflects the author's view of how a good AI roadie should act: direct, honest, useful, and free of corporate sycophancy. No "I'd be happy to help!", no filler, no talking down to people. Just someone with attitude who actually delivers.
 
@@ -11,7 +15,7 @@ We call it a roadie, not a bot. A bot is a vending machine; this is a collaborat
 ## Features
 
 - **Punk rock roadie personality** -- raw, direct, irreverent. Helpful underneath the leather jacket.
-- **Claude via Cloudflare** -- Anthropic SDK pointed at `api.cloudflare.com/.../ai/v1/messages`; ollama fallback when `CF_API_TOKEN` is unset
+- **Claude via Cloudflare** -- Anthropic SDK pointed at the AI Gateway native Anthropic path (`gateway.ai.cloudflare.com/v1/{account}/{gateway}/anthropic`); ollama fallback when `CF_API_TOKEN` is unset
 - **Vision input** -- paste images into the channel; Claude reads them (up to 3 per message, 4 MB each)
 - **Web search + deep research** -- Brave Search, Tavily, and Cloudflare Browser Rendering via the search Worker
 - **Knowledge base** -- `!learn <text or URL>` indexes references into Vectorize
@@ -28,17 +32,18 @@ Discord channel
       |
    bot.mjs
       |
-      +-- api.cloudflare.com/client/v4/accounts/{id}/ai/
-      |       |
-      |       +-- v1/messages  --> Claude (anthropic/claude-sonnet-4-6)
-      |       +-- run          --> Workers AI + Gateway image models
+      +-- gateway.ai.cloudflare.com/v1/{id}/{gateway}/anthropic
+      |       --> Claude (anthropic/claude-sonnet-4-6)
+      |
+      +-- api.cloudflare.com/client/v4/accounts/{id}/ai/run
+      |       --> Workers AI + Gateway image models
       |
       +-- D1 (optional)        session history
       |
       +-- sidvicious-search Worker (optional)
               web_search, research, fetch_page, knowledge
 
-All requests use one CF_API_TOKEN + cf-aig-gateway-id header.
+Chat routes through the AI Gateway (gateway id: skyphusion-llm); one CF_API_TOKEN covers it all.
 ```
 
 ---
@@ -76,7 +81,7 @@ npm install
 npm run roadie
 ```
 
-That's it for chat + images. The default gateway name is `default`.
+That's it for chat + images. The default gateway name is `skyphusion-llm`.
 
 ### 4. Search worker (optional)
 
@@ -91,11 +96,46 @@ npm run deploy
 
 Add `SEARCH_WORKER_URL` and `SEARCH_SECRET` to your `.env`.
 
-### Docker
+---
+
+## Deployment
+
+Two supported paths: a bind-mount Compose stack (the house pattern on dischord) and a
+self-contained Docker image.
+
+### Compose stack (dischord, bind-mount)
+
+The stack runs `node:24` against the repo bind-mounted at `/app`, doing `npm ci` then
+`node bot.mjs` on every start. Env is wired from `stacks/.env`.
 
 ```bash
-cp .env.example stacks/.env    # fill in values
-docker compose -p sidvicious -f stacks/dischord.yml up -d
+# one-time: clone + secrets on dischord
+ssh root@dischord.internal "
+  cd ~/dev && git clone git@github.com:SkyPhusion/SidVicious_exe.git
+  cp ~/dev/SidVicious_exe/.env.example ~/dev/SidVicious_exe/stacks/.env   # then fill it in
+"
+
+# deploy / redeploy after code changes
+rsync -az /home/conrad/dev/SidVicious_exe/ root@dischord.internal:/root/dev/SidVicious_exe/ \
+  --exclude node_modules --exclude .git --exclude stacks/.env --exclude .env
+ssh root@dischord.internal "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
+
+# logs
+ssh root@dischord.internal "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
+```
+
+The deploy, redeploy, and logs commands are also kept in the header of `stacks/dischord.yml`.
+
+### Standalone image (Dockerfile)
+
+For a buildable, portable image (no repo bind-mount), use the included `Dockerfile`
+(`node:24-slim`, runtime deps only, non-root `node` user):
+
+```bash
+cp .env.example stacks/.env          # fill in values
+docker build -t sidvicious .
+docker run -d --name sidvicious --restart unless-stopped --env-file stacks/.env sidvicious
+docker logs -f sidvicious
 ```
 
 ---
@@ -107,7 +147,7 @@ docker compose -p sidvicious -f stacks/dischord.yml up -d
 | `DISCORD_TOKEN` | yes | Discord application token |
 | `CF_ACCOUNT_ID` | yes* | Cloudflare account ID |
 | `CF_API_TOKEN` | yes* | API token (alias: `CF_AIG_TOKEN`) |
-| `CF_AIG_GATEWAY_ID` | no | Gateway name (default: `default`) |
+| `CF_AIG_GATEWAY_ID` | no | Gateway name (default: `skyphusion-llm`) |
 | `DISCORD_MODEL` | no | Chat model (default: `anthropic/claude-sonnet-4-6`) |
 | `DISCORD_CHANNEL_IDS` | no | Channels to listen in (empty = DMs + @mentions) |
 | `CF_D1_DATABASE_ID` | no | D1 database for session persistence |
@@ -140,9 +180,9 @@ Tool use (search, image gen) requires the Cloudflare backend.
 
 ## Credits
 
-**Conrad Rockenhaus** ([SkyPhusion](https://github.com/SkyPhusion)) -- original wiring, forked over greatly improved wiring from ([Slate]{https://github.com/skyphusion-labs/slate.git)).
+**Conrad Rockenhaus** ([SkyPhusion](https://github.com/SkyPhusion)) -- direction and wiring. SidVicious_exe is forked from [Slate](https://github.com/skyphusion-labs/slate), with the film/render features stripped out and a punk-rock personality added.
 
-**Claude Sonnet 4.6** (Anthropic) -- operating as *Strummer*, SkyPhusion's AI crew member. Designed and implemented the Slate architecture from an initial Discord-to-ollama relay: CF AI Gateway integration (native Anthropic SDK path), Anthropic tool-use loop, Brave + Tavily + CF Browser Rendering search pipeline, Cloudflare Vectorize knowledge base, Discord vision input, slash command system, D1 session persistence, render submission and polling, character portrait generation and Vivijure Cast sync, `!thumbnail`, `!undo`, and the `vivijure-search` Worker. This project is an example of the SkyPhusion AI-collaborative development model -- human vision, AI execution, shipped together.
+**Claude Sonnet 4.6** (Anthropic) -- operating as *Strummer*, SkyPhusion's AI crew member. Built the shared chat-and-search foundation this fork inherits: CF AI Gateway integration (native Anthropic SDK path), the Anthropic tool-use loop, the Brave + Tavily + CF Browser Rendering search pipeline, the Cloudflare Vectorize knowledge base, Discord vision input, the slash command system, and D1 session persistence. SidVicious_exe keeps that core (chat, image generation, web search, and the knowledge base) and drops the Vivijure-specific pieces. This project is an example of the SkyPhusion AI-collaborative development model -- human vision, AI execution, shipped together.
 
 ---
 
@@ -150,23 +190,15 @@ Tool use (search, image gen) requires the Cloudflare backend.
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development
 setup, code style (no em-dashes; minimal dependencies), and the PR workflow. Security reports go
-through [SECURITY.md](SECURITY.md), not public issues. Release notes live in
-[CHANGELOG.md](CHANGELOG.md).
+through [SECURITY.md](SECURITY.md), not public issues.
 
 ---
 
 ## Using SidVicious_exe (Terms & Privacy)
 
-Slate is a Discord application that reads message content in the channels it joins. By using it you
+SidVicious_exe is a Discord application that reads message content in the channels it joins. By using it you
 agree to the [Terms of Service](TERMS.md); how it handles your data (and the third-party services
 involved) is described in the [Privacy Policy](PRIVACY.md).
-
----
-
-## License
-
-AGPL-3.0. See [LICENSE](LICENSE).
-
 
 ---
 

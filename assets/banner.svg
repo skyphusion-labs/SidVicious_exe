@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-label="SID VICIOUS.EXE -- punk-rock roadie for chat, image gen, and lore">
+  <title>SID VICIOUS.EXE</title>
+  <defs>
+    <linearGradient id="bbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#120710"/>
+      <stop offset="50%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#160510"/>
+    </linearGradient>
+
+    <linearGradient id="bone2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7f4ea"/>
+      <stop offset="100%" stop-color="#cfc8b6"/>
+    </linearGradient>
+
+    <!-- Torn-poster / grit displacement on the wordmark -->
+    <filter id="rip" x="-8%" y="-30%" width="116%" height="160%">
+      <feTurbulence type="turbulence" baseFrequency="0.009 0.06" numOctaves="2" seed="11" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="10" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <!-- Speckle static -->
+    <filter id="static" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" result="n"/>
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0" result="s"/>
+      <feComposite in="s" in2="SourceGraphic" operator="in"/>
+    </filter>
+  </defs>
+
+  <!-- Backdrop -->
+  <rect width="1500" height="500" fill="url(#bbg)"/>
+
+  <!-- Faint hot-pink corner glow -->
+  <circle cx="120" cy="60" r="320" fill="#ff1f6b" opacity="0.07"/>
+  <circle cx="1420" cy="470" r="340" fill="#18e0e0" opacity="0.05"/>
+
+  <!-- CRT scanlines over whole banner -->
+  <g fill="#000000" opacity="0.18">
+    <rect x="0" y="20"  width="1500" height="4"/>
+    <rect x="0" y="48"  width="1500" height="4"/>
+    <rect x="0" y="76"  width="1500" height="4"/>
+    <rect x="0" y="104" width="1500" height="4"/>
+    <rect x="0" y="132" width="1500" height="4"/>
+    <rect x="0" y="160" width="1500" height="4"/>
+    <rect x="0" y="188" width="1500" height="4"/>
+    <rect x="0" y="216" width="1500" height="4"/>
+    <rect x="0" y="244" width="1500" height="4"/>
+    <rect x="0" y="272" width="1500" height="4"/>
+    <rect x="0" y="300" width="1500" height="4"/>
+    <rect x="0" y="328" width="1500" height="4"/>
+    <rect x="0" y="356" width="1500" height="4"/>
+    <rect x="0" y="384" width="1500" height="4"/>
+    <rect x="0" y="412" width="1500" height="4"/>
+    <rect x="0" y="440" width="1500" height="4"/>
+    <rect x="0" y="468" width="1500" height="4"/>
+  </g>
+
+  <!-- Glitch data slices -->
+  <g opacity="0.7">
+    <rect x="0"    y="92"  width="240" height="10" fill="#18e0e0" opacity="0.5"/>
+    <rect x="1180" y="150" width="320" height="12" fill="#ff1f6b" opacity="0.5"/>
+    <rect x="0"    y="410" width="180" height="9"  fill="#ff1f6b" opacity="0.4"/>
+    <rect x="1320" y="360" width="180" height="9"  fill="#18e0e0" opacity="0.4"/>
+  </g>
+
+  <!-- Small glitch skull mark (echo of avatar) on the left -->
+  <g transform="translate(150 250) scale(0.62)" filter="url(#rip)">
+    <g transform="translate(-256 -250)">
+      <g transform="translate(-8,4)" opacity="0.85">
+        <use href="#bskull" fill="#18e0e0"/>
+      </g>
+      <g transform="translate(8,-3)" opacity="0.85">
+        <use href="#bskull" fill="#ff1f6b"/>
+      </g>
+      <use href="#bskull" fill="url(#bone2)"/>
+    </g>
+  </g>
+
+  <defs>
+    <g id="bskull">
+      <path d="M256 96 C167 96 110 156 110 240 C110 286 128 318 154 342
+               L154 372 C154 384 164 392 176 392 L176 372 L196 372 L196 396
+               C196 408 206 414 218 414 L218 372 L238 372 L238 402
+               C238 414 248 420 256 420 C264 420 274 414 274 402 L274 372
+               L294 372 L294 414 C306 414 316 408 316 396 L316 372 L336 372
+               L336 392 C348 392 358 384 358 372 L358 342
+               C384 318 402 286 402 240 C402 156 345 96 256 96 Z"/>
+      <ellipse cx="198" cy="244" rx="40" ry="46" fill="#0a0a0a"/>
+      <ellipse cx="314" cy="244" rx="40" ry="46" fill="#0a0a0a"/>
+      <path d="M256 270 L236 318 L256 330 L276 318 Z" fill="#0a0a0a"/>
+      <g fill="#0a0a0a">
+        <rect x="206" y="356" width="14" height="36"/>
+        <rect x="230" y="356" width="14" height="44"/>
+        <rect x="254" y="356" width="14" height="44"/>
+        <rect x="278" y="356" width="14" height="44"/>
+        <rect x="302" y="356" width="14" height="36"/>
+      </g>
+    </g>
+  </defs>
+
+  <!-- WORDMARK: RGB-split + torn texture -->
+  <g font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', 'Franklin Gothic Bold', sans-serif"
+     font-weight="bold" letter-spacing="2">
+    <g filter="url(#rip)">
+      <!-- line 1: SID VICIOUS -->
+      <g>
+        <text x="306" y="232" font-size="158" fill="#18e0e0" opacity="0.9" dx="-7" dy="3">SID VICIOUS</text>
+        <text x="306" y="232" font-size="158" fill="#ff1f6b" opacity="0.9" dx="7" dy="-3">SID VICIOUS</text>
+        <text x="306" y="232" font-size="158" fill="url(#bone2)">SID VICIOUS</text>
+      </g>
+      <!-- line 2: .EXE in terminal style -->
+      <g font-family="'Courier New', Courier, monospace" letter-spacing="6">
+        <text x="312" y="356" font-size="120" fill="#18e0e0" opacity="0.85" dx="-6">.EXE</text>
+        <text x="312" y="356" font-size="120" fill="#ff1f6b" opacity="0.85" dx="6">.EXE</text>
+        <text x="312" y="356" font-size="120" fill="#ff1f6b">.EXE</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- blinking-cursor block after .EXE -->
+  <rect x="690" y="262" width="34" height="96" fill="#18e0e0" opacity="0.9"/>
+
+  <!-- Tagline (accurate to feature set) -->
+  <g font-family="'Courier New', Courier, monospace" font-weight="bold">
+    <text x="314" y="416" font-size="30" fill="#f4f0e6" opacity="0.92" letter-spacing="2">
+      punk-rock roadie for chat, image gen, and lore
+    </text>
+    <text x="314" y="452" font-size="20" fill="#18e0e0" opacity="0.8" letter-spacing="3">
+      &gt; Claude on the AI Gateway // Workers AI images // Vectorize knowledge base
+    </text>
+  </g>
+
+  <!-- Static speckle overlay -->
+  <rect width="1500" height="500" fill="#f4f0e6" filter="url(#static)" opacity="0.05"/>
+
+  <!-- Frame -->
+  <rect x="8" y="8" width="1484" height="484" fill="none" stroke="#ff1f6b" stroke-width="4" opacity="0.55"/>
+  <rect x="20" y="20" width="1460" height="460" fill="none" stroke="#18e0e0" stroke-width="1.5" opacity="0.3"/>
+</svg>
