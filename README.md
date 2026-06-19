@@ -4,7 +4,7 @@
 
 **SidVicious_exe** is a punk rock Discord roadie for web search and image generation. Talk to it naturally, ask it to look stuff up, or crank out visuals. Everything runs on the unified Cloudflare API.
 
-> Brand kit: the square mark lives at [`assets/avatar.svg`](assets/avatar.svg) (drop it in as the Discord application icon); the header above is [`assets/banner.svg`](assets/banner.svg). Both are hand-authored, dependency-free SVG.
+> Brand kit: the square mark lives at [`assets/avatar.svg`](assets/avatar.svg); the header above is [`assets/banner.svg`](assets/banner.svg). Both are hand-authored, dependency-free SVG (the editable source). For direct upload to Discord (which needs raster), use [`assets/avatar.png`](assets/avatar.png) as the application icon and [`assets/banner.png`](assets/banner.png) for the header.
 
 The punk personality is intentional. It reflects the author's view of how a good AI roadie should act: direct, honest, useful, and free of corporate sycophancy. No "I'd be happy to help!", no filler, no talking down to people. Just someone with attitude who actually delivers.
 
