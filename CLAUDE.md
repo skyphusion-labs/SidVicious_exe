@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**SidVicious_exe** -- punk rock Discord roadie for web search and image generation. All AI goes through the unified Cloudflare API (`api.cloudflare.com`).
+**SidVicious_exe** -- punk rock Discord roadie for web search and image generation. Chat routes through the Cloudflare AI Gateway native Anthropic path; image generation uses the Cloudflare AI run API. One `CF_API_TOKEN` covers both.
 
 ## Structure
 
@@ -33,11 +33,11 @@ Endpoints used by the roadie (all on `api.cloudflare.com`):
 
 | Feature | Endpoint |
 |---------|----------|
-| Chat (Claude) | `POST /client/v4/accounts/{id}/ai/v1/messages` |
-| Images | `POST /client/v4/accounts/{id}/ai/run` |
+| Chat (Claude) | `POST gateway.ai.cloudflare.com/v1/{id}/{gateway}/anthropic/v1/messages` (AI Gateway native Anthropic path) |
+| Images | `POST api.cloudflare.com/client/v4/accounts/{id}/ai/run` |
 | D1 sessions | Cloudflare REST API (optional) |
 
-Default gateway name is `default` (`CF_AIG_GATEWAY_ID`). Override if you use a custom gateway.
+Default gateway name is `skyphusion-llm` (`CF_AIG_GATEWAY_ID`). Override if you use a custom gateway.
 
 ## search-worker deploy
 

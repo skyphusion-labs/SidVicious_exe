@@ -1,0 +1,13 @@
+node_modules
+.git
+.gitignore
+.github
+.env
+stacks/.env
+*.log
+coverage
+search-worker
+*.test.ts
+vitest.config.ts
+*.md
+LICENSE

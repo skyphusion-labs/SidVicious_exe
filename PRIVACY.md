@@ -1,4 +1,4 @@
-w# Privacy Policy
+# Privacy Policy
 
 **Effective date:** 2026-06-14
 **Service:** SidVicious_exe, a Discord application
@@ -11,25 +11,24 @@ SkyPhusion-operated instance.
 
 ## What SidVicious_exe is
 
-SidVicious_exe is an AI assistant that participates in a Discord channel to help a team plan and develop
-films. It reads conversation in the channels it is added to, maintains a structured "storyboard
-brief" in the background, generates images, searches the web, and submits projects to the Vivijure
-render pipeline. To do this it uses the Discord **Message Content** intent, which means it can read
-the text of messages in the channels where it is active.
+SidVicious_exe is a punk-rock AI assistant that participates in a Discord channel. It follows the
+conversation, answers questions (with optional live web search and deep research), generates images
+on request, and keeps a knowledge base of references people feed it. To do this it uses the Discord
+**Message Content** intent, which means it can read the text of messages in the channels where it is
+active.
 
 ## Data SidVicious_exe processes
 
 - **Message content** in channels SidVicious_exe is configured to listen in, plus direct messages to the bot
-  and messages that @mention it. This is used as the input to the AI model and to build the
-  storyboard brief.
+  and messages that @mention it. This is used as the input to the AI model.
 - **Discord identifiers and display names** as they appear in conversation (so SidVicious_exe can address
-  people and attribute lines), and **channel IDs** (used as the key for a project's stored state).
-- **Image attachments** you post (mood boards, reference stills, concept art). These are fetched
+  people and attribute lines), and **channel IDs** (used as the key for a channel's stored conversation state).
+- **Image attachments** you post. These are fetched
   from Discord's CDN over HTTPS and passed to the AI model for the current turn only. They are
   **not** written to disk and **not** stored in the conversation history (only a text placeholder
   is stored).
-- **Storyboard data** that SidVicious_exe derives from the conversation: the storyboard brief, a rolling
-  window of recent conversation history, a brief "undo" history, and pending render jobs.
+- **Conversation state** that SidVicious_exe derives from the channel: a rolling window of recent
+  conversation history used to keep context across messages.
 - **Knowledge base entries** you add with `!learn` (text or fetched URL content), which are embedded
   and stored for later semantic recall.
 
@@ -40,10 +39,8 @@ To provide the service, SidVicious_exe sends data to the following third parties
 | Provider | What is sent | Why |
 |----------|--------------|-----|
 | **Anthropic** (Claude, via Cloudflare AI Gateway) | message content, attached images | generate the assistant's responses |
-| **Cloudflare** (D1, Vectorize, AI Gateway, Browser Rendering) | storyboard state, knowledge entries, fetched pages | storage, embeddings, model routing, headless page fetches |
+| **Cloudflare** (D1, Vectorize, AI Gateway, Workers AI, Browser Rendering) | conversation state, knowledge entries, image prompts, fetched pages | storage, embeddings, model routing, image generation, headless page fetches |
 | **Brave Search** and **Tavily** | search queries the model chooses to run | web search and research |
-| **skyphusion-llm-public** | image generation prompts | character portraits and scene thumbnails |
-| **Vivijure API** | storyboard bundle, cast data | render submission and cast sync |
 
 If the operator runs SidVicious_exe in its **ollama fallback** mode (no Cloudflare AI Gateway token), message
 content is sent to a self-hosted model instead of Anthropic, and image attachments are reduced to a
@@ -53,15 +50,15 @@ SidVicious_exe does **not** sell your data or use it for advertising.
 
 ## Storage and retention
 
-- Project state (brief, recent history, undo stack, render jobs) is stored in **Cloudflare D1**,
-  scoped per Discord channel. It persists so the project survives a restart.
+- Conversation state (a rolling window of recent history) is stored in **Cloudflare D1**,
+  scoped per Discord channel. It persists so context survives a restart.
 - Knowledge base entries are stored in **Cloudflare Vectorize** until removed.
-- `!reset` clears the calling channel's project and conversation state.
+- `!reset` clears the calling channel's conversation state.
 - To request deletion of a channel's stored data or knowledge entries, contact the operator (below).
 
 ## Data scoping and security
 
-- D1 session data is scoped per Discord channel ID; SidVicious_exe does not read another channel's project.
+- D1 session data is scoped per Discord channel ID; SidVicious_exe does not read another channel's conversation.
 - Secrets and API tokens are never stored in conversation data. See
   [SECURITY.md](SECURITY.md) for the security design and how to report a vulnerability.
 
@@ -72,8 +69,8 @@ your jurisdiction requires) to use Discord and therefore SidVicious_exe.
 
 ## Changes to this policy
 
-We may update this policy as SidVicious_exe evolves. Material changes will be noted in
-[CHANGELOG.md](CHANGELOG.md) and reflected in the effective date above.
+We may update this policy as SidVicious_exe evolves. Material changes will be reflected in the
+effective date above.
 
 ## Contact
 
