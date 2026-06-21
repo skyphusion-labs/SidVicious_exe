@@ -1,0 +1,52 @@
+name: deploy
+
+# Deploy the Cloudflare Worker for SidVicious_exe on a green push to main.
+#
+# Scope: this repo has two runtime pieces --
+#   - the Discord bot (bot.mjs), which runs as a host-side Docker stack on its
+#     host (stacks/dischord.yml: ssh + docker compose up). That deploy is NOT
+#     owned by CI -- it mounts a host checkout and is operated on the box.
+#   - search-worker/ -> the Cloudflare Worker `sidvicious-search`. THIS is the
+#     CI-deployable piece (committed wrangler.toml, plain `wrangler deploy`).
+#
+# So CI deploys only the Worker; the bot stays a deliberate host-side step.
+#
+# Runner: GitHub-hosted ubuntu-latest. PUBLIC repo, so deploy is gated to
+# push-to-main (never a fork PR) and runs fork-safe.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   -- CF API token with Workers Scripts:Edit (the
+#                             worker also binds Browser Rendering + Vectorize).
+#   CLOUDFLARE_ACCOUNT_ID  -- the Cloudflare account ID.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-sidvicious-search-main
+  cancel-in-progress: false
+
+jobs:
+  deploy-search-worker:
+    name: Deploy sidvicious-search worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: search-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # Gate: don't ship a worker that doesn't typecheck.
+      - run: npm run typecheck
+      - run: npx wrangler deploy
