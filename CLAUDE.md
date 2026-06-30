@@ -23,7 +23,7 @@ search-worker/           Cloudflare Worker `sidvicious-search`: web search + kno
   src/index.ts           Worker source
   wrangler.toml          Bindings: BROWSER, AI, KNOWLEDGE (Vectorize: sidvicious-knowledge)
 stacks/
-  dischord.yml           Docker Compose stack (loads stacks/.env)
+  compose.prod.yml       Docker Compose stack (loads stacks/.env)
 ```
 
 ## Commands
@@ -50,7 +50,7 @@ typechecks (`npm run typecheck`). `bot.test.ts` (Vitest) is a boot smoke that im
 against mocked tokens. CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
 fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `code-coverage.yml` runs the Vitest
 smoke; `deploy.yml` deploys `sidvicious-search` on a green push to `main`. The bot itself is NOT
-deployed by CI: it is a deliberate host-side Docker step on `<deploy-host>` (`stacks/dischord.yml`).
+deployed by CI: it is a deliberate host-side Docker step on `<deploy-host>` (`stacks/compose.prod.yml`).
 
 ## Cloudflare setup
 
@@ -116,7 +116,7 @@ Plain chat (and `@mention` / DM) is handled directly; the channels the roadie li
 - Crew commits land under the member's own `skyphusion-<member>` identity, never Conrad's. (Conrad
   devs ONLY on his laptop, where his commits author as `Conrad Rockenhaus <conrad@skyphusion.org>`
   -- his real name kept, the in-house `@skyphusion.org` email; his name is never scrubbed and his
-  history never rewritten. On jello the `conrad` user is the god process and commits as
+  history never rewritten. On the crew host the `conrad` user is the god process and commits as
   `Mackaye <mackaye@skyphusion.org>`.)
 - Cross-project operating context lives in the main auto-memory
   (`~/.claude/projects/-home-conrad/memory/`); load it before acting.
