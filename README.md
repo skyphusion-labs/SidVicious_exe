@@ -118,13 +118,13 @@ ssh <deploy-user>@<deploy-host> "
 # deploy / redeploy after code changes
 rsync -az <repo-checkout>/ <deploy-user>@<deploy-host>:~/dev/SidVicious_exe/ \
   --exclude node_modules --exclude .git --exclude stacks/.env --exclude .env
-ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
+ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f compose.prod.yml up -d --force-recreate sidvicious"
 
 # logs
-ssh <deploy-user>@<deploy-host> "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
+ssh <deploy-user>@<deploy-host> "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/compose.prod.yml logs -f"
 ```
 
-The deploy, redeploy, and logs commands are also kept in the header of `stacks/dischord.yml`.
+The deploy, redeploy, and logs commands are also kept in the header of `stacks/compose.prod.yml`.
 
 ### Standalone image (Dockerfile)
 

@@ -4,7 +4,7 @@ name: deploy
 #
 # Scope: this repo has two runtime pieces --
 #   - the Discord bot (bot.mjs), which runs as a host-side Docker stack on its
-#     host (stacks/dischord.yml: ssh + docker compose up). That deploy is NOT
+#     host (stacks/compose.prod.yml: ssh + docker compose up). That deploy is NOT
 #     owned by CI -- it mounts a host checkout and is operated on the box.
 #   - search-worker/ -> the Cloudflare Worker `sidvicious-search`. THIS is the
 #     CI-deployable piece (committed wrangler.toml, plain `wrangler deploy`).
