@@ -15,7 +15,7 @@ External contributions are welcome. Please read this first.
 
 ```bash
 npm install
-# reference stacks/dischord.yml for required env vars
+# reference stacks/compose.prod.yml for required env vars
 # create a local .env with your Discord token + channel IDs
 node bot.mjs
 ```
