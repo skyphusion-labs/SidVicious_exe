@@ -9,7 +9,7 @@ naturally, ask it to look things up, or have it generate visuals. Chat routes th
 AI Gateway native Anthropic path (Claude); image generation uses the Cloudflare AI `run` API
 (Workers AI + Gateway image models). A single `CF_API_TOKEN` (AI Gateway permission) covers both.
 The punk personality is intentional: direct, honest, useful, no corporate sycophancy. Currently
-**v0.1.0**. Runs as a Docker stack on the dischord host; the search backend is a Cloudflare Worker.
+**v0.1.0**. Runs as a Docker stack on `<deploy-host>`; the search backend is a Cloudflare Worker.
 
 ## Structure
 
@@ -50,7 +50,7 @@ typechecks (`npm run typecheck`). `bot.test.ts` (Vitest) is a boot smoke that im
 against mocked tokens. CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
 fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `code-coverage.yml` runs the Vitest
 smoke; `deploy.yml` deploys `sidvicious-search` on a green push to `main`. The bot itself is NOT
-deployed by CI: it is a deliberate host-side Docker step on dischord (`stacks/dischord.yml`).
+deployed by CI: it is a deliberate host-side Docker step on `<deploy-host>` (`stacks/dischord.yml`).
 
 ## Cloudflare setup
 
