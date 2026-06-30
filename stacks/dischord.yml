@@ -1,4 +1,4 @@
-# Dischord fleet stack: SidVicious_exe (punk rock Discord roadie)
+# Production compose stack: SidVicious_exe (punk rock Discord roadie)
 #
 # Secrets (never committed): create ~/dev/SidVicious_exe/stacks/.env with:
 #   DISCORD_TOKEN         - Discord bot token (required)
@@ -20,9 +20,9 @@
 # Claude backend (default): set CF_ACCOUNT_ID + CF_API_TOKEN
 # Ollama backend:           unset CF_API_TOKEN, set OLLAMA_BASE_URL + DISCORD_MODEL=<ollama model>
 #
-# Deploy:   ssh root@dischord.internal "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d"
-# Redeploy: ssh root@dischord.internal "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
-# Logs:     ssh root@dischord.internal "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
+# Deploy:   ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d"
+# Redeploy: ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
+# Logs:     ssh <deploy-user>@<deploy-host> "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
 
 services:
   sidvicious:
@@ -46,4 +46,4 @@ services:
       CF_D1_TOKEN: ${CF_D1_TOKEN:-}
       SEARCH_WORKER_URL: ${SEARCH_WORKER_URL:-}
       SEARCH_SECRET: ${SEARCH_SECRET:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://wendy.internal:11434/v1}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}

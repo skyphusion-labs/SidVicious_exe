@@ -100,28 +100,28 @@ Add `SEARCH_WORKER_URL` and `SEARCH_SECRET` to your `.env`.
 
 ## Deployment
 
-Two supported paths: a bind-mount Compose stack (the house pattern on dischord) and a
+Two supported paths: a bind-mount Compose stack (the house pattern on a Docker host) and a
 self-contained Docker image.
 
-### Compose stack (dischord, bind-mount)
+### Compose stack (Docker host, bind-mount)
 
 The stack runs `node:24` against the repo bind-mounted at `/app`, doing `npm ci` then
 `node bot.mjs` on every start. Env is wired from `stacks/.env`.
 
 ```bash
-# one-time: clone + secrets on dischord
-ssh root@dischord.internal "
+# one-time: clone + secrets on the deploy host
+ssh <deploy-user>@<deploy-host> "
   cd ~/dev && git clone git@github.com:SkyPhusion/SidVicious_exe.git
   cp ~/dev/SidVicious_exe/.env.example ~/dev/SidVicious_exe/stacks/.env   # then fill it in
 "
 
 # deploy / redeploy after code changes
-rsync -az /home/conrad/dev/SidVicious_exe/ root@dischord.internal:/root/dev/SidVicious_exe/ \
+rsync -az <repo-checkout>/ <deploy-user>@<deploy-host>:~/dev/SidVicious_exe/ \
   --exclude node_modules --exclude .git --exclude stacks/.env --exclude .env
-ssh root@dischord.internal "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
+ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f dischord.yml up -d --force-recreate sidvicious"
 
 # logs
-ssh root@dischord.internal "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
+ssh <deploy-user>@<deploy-host> "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/dischord.yml logs -f"
 ```
 
 The deploy, redeploy, and logs commands are also kept in the header of `stacks/dischord.yml`.
