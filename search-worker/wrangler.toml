@@ -2,7 +2,7 @@ name = "sidvicious-search"
 main = "src/index.ts"
 compatibility_date = "2025-06-14"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = false  # no workers.dev door; self-authenticates + reached by binding/token (defense-in-depth; fleet-chezmoi#46)
+workers_dev = true  # the sid bot calls the workers.dev door directly with X-Search-Secret; pin true so a manual deploy or sweep cannot silently close a consumed door (IaC owns the flag; SidVicious_exe#12)
 
 [browser]
 binding = "BROWSER"
