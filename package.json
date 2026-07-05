@@ -1,6 +1,6 @@
 {
   "name": "SidVicious_exe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "SidVicious_exe -- punk rock Discord roadie for search and image generation via Cloudflare",
@@ -11,6 +11,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55",
     "discord.js": "^14"
+  },
+  "overrides": {
+    "undici": "6.27.0"
   },
   "engines": {
     "node": ">=24"

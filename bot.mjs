@@ -127,7 +127,9 @@ const anthropic = CFG.apiToken && (useGatewayAnthropic || CF_AI_V1)
   : null;
 
 const imageGenReady = Boolean(CFG.apiToken && CFG.cfAccountId);
-const chatBackend = anthropic ? (useGatewayAnthropic ? anthropicBase : CF_AI_V1) : CFG.ollamaBase;
+// Log a backend label, not the resolved URL: the URL embeds the Cloudflare
+// account ID from the environment (flagged by CodeQL js/clear-text-logging).
+const chatBackend = anthropic ? (useGatewayAnthropic ? 'cf-gateway-anthropic' : 'workers-ai-v1') : 'ollama';
 
 log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=${CFG.aigGatewayId} images=${imageGenReady ? 'on' : 'off'} channels=${CFG.channelIds.size || 'DMs+mentions only'}`);
 
