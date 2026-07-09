@@ -186,6 +186,16 @@ Tool use (search, image gen) requires the Cloudflare backend.
 
 ---
 
+## Who this is for
+
+Discord communities that want a punk-rock AI collaborator (search, images, knowledge base) without the corporate tone. Self-host on Cloudflare; bring your own keys.
+
+## Links
+
+- **Forked from:** [slate](https://github.com/skyphusion-labs/slate) (film stack stripped out)
+- **Skyphusion Labs:** https://skyphusion.org · **Org:** https://github.com/skyphusion-labs
+- **Related:** [prism](https://github.com/skyphusion-labs/prism) (multimodal playground)
+
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development

@@ -4,6 +4,20 @@
   "private": true,
   "type": "module",
   "description": "SidVicious_exe -- punk rock Discord roadie for search and image generation via Cloudflare",
+  "homepage": "https://github.com/skyphusion-labs/SidVicious_exe",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skyphusion-labs/SidVicious_exe.git"
+  },
+  "keywords": [
+    "discord-bot",
+    "cloudflare-workers",
+    "llm",
+    "web-search",
+    "image-generation",
+    "workers-ai",
+    "self-hosted"
+  ],
   "scripts": {
     "roadie": "node --env-file-if-exists=.env bot.mjs",
     "bot": "node --env-file-if-exists=.env bot.mjs"
