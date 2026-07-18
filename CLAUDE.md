@@ -9,16 +9,22 @@ naturally, ask it to look things up, or have it generate visuals. Chat routes th
 AI Gateway native Anthropic path (Claude); image generation uses the Cloudflare AI `run` API
 (Workers AI + Gateway image models). A single `CF_API_TOKEN` (AI Gateway permission) covers both.
 The punk personality is intentional: direct, honest, useful, no corporate sycophancy. Currently
-**v0.1.0**. Runs as a Docker stack on the `<deploy-host>`; the search backend is a Cloudflare Worker.
+**v0.2.0**, published to npm as `@skyphusion/sidvicious-exe` (release-gated publish workflow). Runs
+as a Docker stack on the `<deploy-host>`; the search backend is a Cloudflare Worker.
 
 ## Structure
 
 ```
 bot.mjs                  Node 24+ Discord roadie (main entry point, ~36KB)
-package.json             Roadie deps (@anthropic-ai/sdk, discord.js); scripts: roadie, bot
-bot.test.ts              Vitest smoke (imports bot.mjs against mocked env)
+lib/helpers.mjs          Pure, network-free logic extracted from bot.mjs (#39); unit-tested
+package.json             Roadie deps (@anthropic-ai/sdk, discord.js); scripts: roadie, bot, test
+bot.test.ts              Vitest boot smoke (imports bot.mjs against mocked env)
+helpers.test.mjs         Vitest unit tests for lib/helpers.mjs (pure logic, no mocks)
 .env.example             Env template (DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN, ...)
 Dockerfile               Self-contained image (node:24-slim, non-root)
+docs/
+  BEHAVIOR.md            Behavior + failure-mode contract for the user-facing surface (#39)
+  SMOKE.md               Manual Discord smoke checklist (run before tagging a release)
 search-worker/           Cloudflare Worker `sidvicious-search`: web search + knowledge base
   src/index.ts           Worker source
   wrangler.toml          Bindings: BROWSER, AI, KNOWLEDGE (Vectorize: sidvicious-knowledge)
@@ -33,7 +39,7 @@ cp .env.example .env       # fill in DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
 npm install
 npm run roadie             # node --env-file-if-exists=.env bot.mjs (run the roadie locally)
 node --check bot.mjs       # parse check -- the CI gate for the bot
-npx vitest run             # the boot smoke (bot.test.ts); there is no `test` npm script
+npm test                   # vitest: boot smoke (bot.test.ts) + helpers.test.mjs (16 tests)
 cd search-worker && npm run typecheck && npm run deploy   # the search worker
 ```
 
@@ -46,10 +52,11 @@ npx wrangler secret put BRAVE_API_KEY   # and TAVILY_API_KEY, SEARCH_SECRET
 ### Verifying changes
 
 The bot is dependency-free at parse time, so `node --check bot.mjs` is the gate, and `search-worker`
-typechecks (`npm run typecheck`). `bot.test.ts` (Vitest) is a boot smoke that imports `bot.mjs`
-against mocked tokens. CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
+typechecks (`npm run typecheck`). `npm test` runs the Vitest suite: `bot.test.ts` is a boot smoke that
+imports `bot.mjs` against mocked tokens, and `helpers.test.mjs` unit-tests the pure logic in
+`lib/helpers.mjs` (no mocks). CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
 fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `code-coverage.yml` runs the Vitest
-smoke; `deploy.yml` deploys `sidvicious-search` on a green push to `main`. The bot itself is NOT
+suite; `deploy.yml` deploys `sidvicious-search` on a green push to `main`. The bot itself is NOT
 deployed by CI: it is a deliberate host-side Docker step on the `<deploy-host>` (`stacks/compose.prod.yml`).
 
 ## Cloudflare setup
