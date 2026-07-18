@@ -11,6 +11,7 @@ RUN npm ci --omit=dev
 
 # Application source.
 COPY bot.mjs ./
+COPY lib/ ./lib/
 
 # Logs go to stdout in container mode.
 ENV DISCORD_LOG=/dev/stdout

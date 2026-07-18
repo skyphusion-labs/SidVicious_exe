@@ -48,6 +48,19 @@ Chat routes through the AI Gateway (gateway id: skyphusion-llm); one CF_API_TOKE
 
 ---
 
+## Install from npm (no clone needed)
+
+```bash
+npx @skyphusion/sidvicious-exe        # or: npm i -g @skyphusion/sidvicious-exe && sidvicious
+```
+
+The package ships the roadie only (`bot.mjs` + `lib/`); configure it with the same env vars
+as below (`.env` in the working directory is honored). **What is NOT on npm:** the
+`search-worker/` Cloudflare Worker -- deploy that from this repo with wrangler and point
+`SEARCH_WORKER_URL` at it (search/knowledge tools stay off without it, everything else
+works). For a long-running deployment prefer the Docker stack below. Behavior contract:
+[docs/BEHAVIOR.md](docs/BEHAVIOR.md); pre-release manual checklist: [docs/SMOKE.md](docs/SMOKE.md).
+
 ## Setup
 
 ### 1. Discord application

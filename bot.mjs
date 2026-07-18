@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // bot.mjs
 // SidVicious_exe -- punk rock Discord roadie for web search and image generation.
 //
@@ -39,6 +40,23 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AttachmentBuilder, Client, GatewayIntentBits, Partials, Events, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { appendFileSync, existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
+import {
+  DEFAULT_IMAGE_MODEL,
+  IMAGE_MODELS,
+  MULTIPART_IMAGE_MODELS,
+  anthropicBaseFromGatewayEndpoint,
+  buildGatewayCompatEndpoint,
+  flattenForOllama,
+  formatModelList,
+  freshSession,
+  normalizeChatModel,
+  normalizeSession,
+  resolveImageModel,
+  sanitizeErrorMessage,
+  splitMessage,
+  stripThink,
+  trimHistory,
+} from './lib/helpers.mjs';
 
 if (existsSync('.env')) loadEnvFile('.env');
 
@@ -86,19 +104,6 @@ const CF_AI_BASE = CFG.cfAccountId
 const CF_AI_V1   = CF_AI_BASE ? `${CF_AI_BASE}/v1` : '';
 const CF_AI_RUN  = CF_AI_BASE ? `${CF_AI_BASE}/run` : '';
 
-function buildGatewayCompatEndpoint(accountId, gatewayId) {
-  if (!accountId || !gatewayId) return '';
-  return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/compat/chat/completions`;
-}
-
-function anthropicBaseFromGatewayEndpoint(endpoint) {
-  const base = endpoint
-    .replace(/\/compat\/chat\/completions\/?$/, '')
-    .replace(/\/compat\/?$/, '')
-    .replace(/\/$/, '');
-  return `${base}/anthropic`;
-}
-
 const gatewayCompatEndpoint = CFG.gatewayEndpoint
   || buildGatewayCompatEndpoint(CFG.cfAccountId, CFG.aigGatewayId);
 const anthropicBase = gatewayCompatEndpoint
@@ -106,17 +111,13 @@ const anthropicBase = gatewayCompatEndpoint
   : '';
 const useGatewayAnthropic = Boolean(anthropicBase);
 
-function normalizeChatModel(model) {
-  if (useGatewayAnthropic) {
-    if (model.startsWith('anthropic/')) return model.slice('anthropic/'.length);
-    return model;
-  }
-  if (model.includes('/')) return model;
-  if (model.startsWith('claude')) return `anthropic/${model}`;
-  return model;
-}
+const chatModel = normalizeChatModel(CFG.model, useGatewayAnthropic);
 
-const chatModel = normalizeChatModel(CFG.model);
+// #39 audit: SDK/fetch errors can embed request URLs carrying the account id
+// (the gateway base URL). Scrub configured identifiers from anything echoed
+// into a Discord reply; the raw message still goes to the local log.
+const SENSITIVE_VALUES = [CFG.cfAccountId, CFG.apiToken, CFG.d1Token, CFG.searchSecret].filter(Boolean);
+const scrub = (message) => sanitizeErrorMessage(message, SENSITIVE_VALUES);
 
 const anthropic = CFG.apiToken && (useGatewayAnthropic || CF_AI_V1)
   ? new Anthropic({
@@ -137,48 +138,7 @@ log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=
 // Image model catalog
 // ---------------------------------------------------------------------------
 
-const IMAGE_MODELS = [
-  { alias: 'flux-schnell',  id: '@cf/black-forest-labs/flux-1-schnell',         label: 'FLUX-1 Schnell (fast, default)' },
-  { alias: 'flux2-fast',    id: '@cf/black-forest-labs/flux-2-klein-4b',         label: 'FLUX 2 Klein 4B (faster frontier)' },
-  { alias: 'flux2',         id: '@cf/black-forest-labs/flux-2-klein-9b',         label: 'FLUX 2 Klein 9B (frontier quality)' },
-  { alias: 'flux2-dev',     id: '@cf/black-forest-labs/flux-2-dev',              label: 'FLUX 2 Dev (multi-reference)' },
-  { alias: 'phoenix',       id: '@cf/leonardo/phoenix-1.0',                      label: 'Phoenix 1.0 (Leonardo)' },
-  { alias: 'lucid',         id: '@cf/leonardo/lucid-origin',                     label: 'Lucid Origin (Leonardo)' },
-  { alias: 'dreamshaper',   id: '@cf/lykon/dreamshaper-8-lcm',                   label: 'Dreamshaper 8 LCM (fast SD)' },
-  { alias: 'sdxl',          id: '@cf/stabilityai/stable-diffusion-xl-base-1.0',  label: 'Stable Diffusion XL' },
-  { alias: 'gpt-image',     id: 'openai/gpt-image-1.5',                          label: 'GPT Image 1.5 (OpenAI)' },
-  { alias: 'recraft',       id: 'recraft/recraftv4',                             label: 'Recraft V4 (art-directed)' },
-  { alias: 'nano-banana',   id: 'google/nano-banana-pro',                        label: 'Nano Banana Pro (Google)' },
-];
-
-const DEFAULT_IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
-
-// FLUX 2 models require multipart form data even for prompt-only requests.
-const MULTIPART_IMAGE_MODELS = new Set([
-  '@cf/black-forest-labs/flux-2-klein-4b',
-  '@cf/black-forest-labs/flux-2-klein-9b',
-  '@cf/black-forest-labs/flux-2-dev',
-]);
-
-function resolveImageModel(input) {
-  const lower = input.toLowerCase().trim();
-  const byAlias = IMAGE_MODELS.find(m => m.alias === lower);
-  if (byAlias) return byAlias;
-  const byId = IMAGE_MODELS.find(m => m.id === input);
-  if (byId) return byId;
-  const byPartial = IMAGE_MODELS.find(m => m.id.includes(lower));
-  if (byPartial) return byPartial;
-  return null;
-}
-
-function formatModelList(currentId) {
-  const lines = ['**Image Models** (`!model <name>` or `/model <name>` to switch)\n'];
-  for (const m of IMAGE_MODELS) {
-    const active = m.id === currentId ? ' **<-- active**' : '';
-    lines.push(`  \`${m.alias}\` -- ${m.label}${active}`);
-  }
-  return lines.join('\n');
-}
+// Catalog + resolution live in lib/helpers.mjs (#39).
 
 // ---------------------------------------------------------------------------
 // Session state -- persisted in Cloudflare D1 (REST API), cached in-memory
@@ -233,12 +193,9 @@ async function loadSession(channelId) {
 async function getSession(channelId) {
   if (!sessions.has(channelId)) {
     const loaded = await loadSession(channelId);
-    if (!loaded) sessions.set(channelId, { history: [], imageModel: DEFAULT_IMAGE_MODEL });
+    if (!loaded) sessions.set(channelId, freshSession());
   }
-  const s = sessions.get(channelId);
-  if (!s.imageModel) s.imageModel = DEFAULT_IMAGE_MODEL;
-  if (!s.history)    s.history    = [];
-  return s;
+  return normalizeSession(sessions.get(channelId));
 }
 
 async function saveSession(channelId) {
@@ -284,21 +241,6 @@ Stay in character. Be useful. Don't lecture about punk gatekeeping.`;
 // ---------------------------------------------------------------------------
 // LLM helpers
 // ---------------------------------------------------------------------------
-
-function stripThink(text) {
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-}
-
-function flattenForOllama(messages) {
-  return messages.map(m => {
-    if (typeof m.content === 'string') return m;
-    if (!Array.isArray(m.content)) return m;
-    const imgCount = m.content.filter(b => b.type === 'image').length;
-    const text = m.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
-    const prefix = imgCount > 0 ? `[${imgCount} image(s) attached -- vision not supported in ollama mode]\n` : '';
-    return { ...m, content: prefix + text };
-  });
-}
 
 async function callOllama(system, conversationMessages) {
   const messages = flattenForOllama(conversationMessages);
@@ -574,18 +516,7 @@ async function indexKnowledge(content, title = '', author = '') {
 // Message chunking (Discord 2000 char limit)
 // ---------------------------------------------------------------------------
 
-function splitMessage(text, limit = 1990) {
-  if (text.length <= limit) return [text];
-  const chunks = [];
-  while (text.length > 0) {
-    let slice = text.slice(0, limit);
-    const lastNl = slice.lastIndexOf('\n');
-    if (lastNl > limit * 0.5) slice = text.slice(0, lastNl + 1);
-    chunks.push(slice.trimEnd());
-    text = text.slice(slice.length).trimStart();
-  }
-  return chunks.filter(Boolean);
-}
+// splitMessage lives in lib/helpers.mjs (#39).
 
 // ---------------------------------------------------------------------------
 // Slash command definitions
@@ -701,7 +632,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       case 'reset': {
-        sessions.set(channelId, { history: [], imageModel: DEFAULT_IMAGE_MODEL });
+        sessions.set(channelId, freshSession());
         await saveSession(channelId);
         log(`[${channelId}] session reset by ${authorName}`);
         await interaction.reply('Memory wiped. Fresh start. What do you want?');
@@ -714,7 +645,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const reply = interaction.replied || interaction.deferred
       ? interaction.editReply.bind(interaction)
       : interaction.reply.bind(interaction);
-    await reply(`(error: ${e.message})`).catch(() => {});
+    await reply(`(error: ${scrub(e.message)})`).catch(() => {});
   }
 });
 
@@ -745,7 +676,7 @@ client.on(Events.MessageCreate, async (message) => {
   log(`[${channelLabel}] ${authorName}: ${rawText.slice(0, 120)}${hasImages ? ` [+${message.attachments.size} image(s)]` : ''}`);
 
   if (rawText === '!reset') {
-    sessions.set(channelId, { history: [], imageModel: DEFAULT_IMAGE_MODEL });
+    sessions.set(channelId, freshSession());
     await saveSession(channelId);
     log(`[${channelId}] reset by ${authorName}`);
     await message.reply('Memory wiped. Fresh start. What do you want?').catch(() => {});
@@ -832,7 +763,7 @@ client.on(Events.MessageCreate, async (message) => {
     const historyText = imageBlocks.length > 0 ? `[${imageBlocks.length} image(s)]\n${userLabel}` : userLabel;
     session.history.push({ role: 'user',      content: historyText });
     session.history.push({ role: 'assistant', content: reply });
-    while (session.history.length > CFG.historyLen * 2) session.history.shift();
+    trimHistory(session.history, CFG.historyLen);
     await saveSession(channelId);
 
     log(`-> ${reply.slice(0, 120)}${reply.length > 120 ? '...' : ''}`);
@@ -851,7 +782,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
   } catch (err) {
     log(`ERROR: ${err.message}`);
-    await message.reply(`(error: ${err.message})`).catch(() => {});
+    await message.reply(`(error: ${scrub(err.message)})`).catch(() => {});
   } finally {
     clearInterval(typingInterval);
   }
@@ -864,8 +795,11 @@ client.on(Events.MessageCreate, async (message) => {
 await initD1().catch(err => log(`D1 init notice: ${err.message}`));
 
 if (process.env.VITEST) {
+  // #39 audit: the smoke previously called the REAL Discord REST API with a
+  // fake token from CI (slow, network-dependent, rate-limit noise). The smoke
+  // asserts config/parse/import health only; no network leaves the process.
   log('CI mode: validating configuration...');
-  await registerSlashCommands('123456789012345678').catch(err => log(`Mock command reg notice: ${err.message}`));
+  log(`SMOKE: commands=${SLASH_COMMANDS.length} backend=${chatBackend} images=${imageGenReady ? 'on' : 'off'}`);
   log('SMOKE TEST PASSED: SidVicious_exe configuration verified.');
   client.destroy();
 } else {
