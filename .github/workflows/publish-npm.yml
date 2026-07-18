@@ -1,0 +1,43 @@
+name: publish-npm
+
+# Publish @skyphusion/sidvicious-exe to npm when a GitHub Release is published
+# (the org distribution pattern: .github/brand/distribution.md). Guard: the
+# release tag must match package.json's version, so a mistagged release cannot
+# ship the wrong artifact. Public repo -> GitHub-hosted runner (fork-safe);
+# secret NPM_TOKEN is the org automation token.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm-sidvicious
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Gate (parse + unit tests)
+        run: |
+          node --check bot.mjs
+          npx vitest run
+      - name: Version guard (tag == package.json version)
+        run: |
+          PKG_V="v$(node -p "require('./package.json').version")"
+          if [ "$PKG_V" != "$GITHUB_REF_NAME" ]; then
+            echo "release tag $GITHUB_REF_NAME != package version $PKG_V"; exit 1
+          fi
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
