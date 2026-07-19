@@ -13,8 +13,10 @@ name: deploy
 #
 # Runner: GitHub-hosted ubuntu-latest. PUBLIC repo. Deploy is tag-only: a bare
 # merge to main NEVER redeploys the Worker. Cut a SemVer tag to ship
-# (git tag -a v0.1.0 -m "..." && git push origin v0.1.0). workflow_dispatch is
-# kept for a deliberate manual redeploy.
+# (git tag -a v0.1.0 -m "..." && git push origin v0.1.0). workflow_dispatch may
+# run the gate (npm ci / typecheck) but the deploy step is guarded with
+# `if: startsWith(github.ref, 'refs/tags/v')` so a manual dispatch from a
+# non-tag ref never ships (same pattern as common-thread).
 #
 # Required repo secrets (Settings -> Secrets and variables -> Actions):
 #   CLOUDFLARE_API_TOKEN   -- CF API token with Workers Scripts:Edit (the
@@ -52,4 +54,6 @@ jobs:
       - run: npm ci
       # Gate: don't ship a worker that doesn't typecheck.
       - run: npm run typecheck
-      - run: npx wrangler deploy
+      - name: Deploy worker
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npx wrangler deploy
