@@ -1,6 +1,6 @@
 name: deploy
 
-# Deploy the Cloudflare Worker for SidVicious_exe on a green push to main.
+# Deploy the Cloudflare Worker for SidVicious_exe on a pushed version tag (v*).
 #
 # Scope: this repo has two runtime pieces --
 #   - the Discord bot (bot.mjs), which runs as a host-side Docker stack on its
@@ -11,8 +11,10 @@ name: deploy
 #
 # So CI deploys only the Worker; the bot stays a deliberate host-side step.
 #
-# Runner: GitHub-hosted ubuntu-latest. PUBLIC repo, so deploy is gated to
-# push-to-main (never a fork PR) and runs fork-safe.
+# Runner: GitHub-hosted ubuntu-latest. PUBLIC repo. Deploy is tag-only: a bare
+# merge to main NEVER redeploys the Worker. Cut a SemVer tag to ship
+# (git tag -a v0.1.0 -m "..." && git push origin v0.1.0). workflow_dispatch is
+# kept for a deliberate manual redeploy.
 #
 # Required repo secrets (Settings -> Secrets and variables -> Actions):
 #   CLOUDFLARE_API_TOKEN   -- CF API token with Workers Scripts:Edit (the
@@ -21,13 +23,14 @@ name: deploy
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-sidvicious-search-main
+  group: deploy-sidvicious-search-tag
   cancel-in-progress: false
 
 jobs:
