@@ -1,6 +1,6 @@
 {
   "name": "@skyphusion/sidvicious-exe",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "type": "module",
   "description": "SidVicious_exe -- punk rock Discord roadie for search and image generation via Cloudflare",
