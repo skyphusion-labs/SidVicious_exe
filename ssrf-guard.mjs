@@ -8,10 +8,11 @@ const BLOCKED_HOSTS = new Set([
 ]);
 
 function isBlockedIp(host) {
-  if (host === '::1' || host.startsWith('fe80:') || host.startsWith('fc') || host.startsWith('fd')) {
+  const h = String(host).toLowerCase();
+  if (h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) {
     return true;
   }
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
   if (!m) return false;
   const a = Number(m[1]);
   const b = Number(m[2]);
@@ -22,6 +23,35 @@ function isBlockedIp(host) {
   if (a === 169 && b === 254) return true;
   if (a === 0) return true;
   return false;
+}
+
+function validateHostname(host) {
+  const h = host.toLowerCase();
+  if (BLOCKED_HOSTS.has(h) || h.endsWith('.internal') || h.endsWith('.local')) {
+    throw new Error('URL host is not allowed');
+  }
+  if (isBlockedIp(h)) {
+    throw new Error('URL host is not allowed');
+  }
+}
+
+async function resolveHost(hostname) {
+  if (isBlockedIp(hostname)) {
+    throw new Error('URL host is not allowed');
+  }
+  const res = await fetch(
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
+    { headers: { Accept: 'application/dns-json' } },
+  );
+  if (!res.ok) throw new Error('URL host could not be resolved');
+  const data = await res.json();
+  const answers = data.Answer ?? [];
+  if (answers.length === 0) throw new Error('URL host could not be resolved');
+  for (const ans of answers) {
+    if ((ans.type === 1 || ans.type === 28) && isBlockedIp(ans.data)) {
+      throw new Error('URL host is not allowed');
+    }
+  }
 }
 
 export function assertPublicFetchUrl(raw) {
@@ -37,17 +67,19 @@ export function assertPublicFetchUrl(raw) {
   if (url.username || url.password) {
     throw new Error('URL must not embed credentials');
   }
-  const host = url.hostname.toLowerCase();
-  if (BLOCKED_HOSTS.has(host) || host.endsWith('.internal') || host.endsWith('.local')) {
-    throw new Error('URL host is not allowed');
-  }
-  if (isBlockedIp(host)) {
-    throw new Error('URL host is not allowed');
+  validateHostname(url.hostname);
+  return url;
+}
+
+export async function assertPublicFetchUrlResolved(raw) {
+  const url = assertPublicFetchUrl(raw);
+  if (!isBlockedIp(url.hostname)) {
+    await resolveHost(url.hostname);
   }
   return url;
 }
 
 export async function fetchPublicUrl(raw, init) {
-  const url = assertPublicFetchUrl(raw);
-  return fetch(url.toString(), init);
+  const url = await assertPublicFetchUrlResolved(raw);
+  return fetch(url.toString(), { ...init, redirect: 'manual' });
 }
