@@ -40,6 +40,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AttachmentBuilder, Client, GatewayIntentBits, Partials, Events, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { appendFileSync, existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
+import { fetchPublicUrl } from './ssrf-guard.mjs';
 import {
   DEFAULT_IMAGE_MODEL,
   IMAGE_MODELS,
@@ -416,7 +417,12 @@ async function bufferFromImageField(image) {
   if (typeof image !== 'string' || !image) return null;
 
   if (image.startsWith('http://') || image.startsWith('https://')) {
-    const res = await fetch(image);
+    let res;
+    try {
+      res = await fetchPublicUrl(image);
+    } catch {
+      return null;
+    }
     if (!res.ok) return null;
     const mime = res.headers.get('content-type') ?? 'image/png';
     const buffer = Buffer.from(await res.arrayBuffer());

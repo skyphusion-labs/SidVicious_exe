@@ -8,6 +8,7 @@
 //   POST /knowledge/search  { query, topK?: number }
 
 import puppeteer from "@cloudflare/puppeteer";
+import { assertPublicFetchUrl, assertPublicFetchUrlResolved } from "./ssrf";
 
 interface Env {
   BROWSER: Fetcher;
@@ -108,6 +109,11 @@ async function handleSearch(req: Request, env: Env): Promise<Response> {
 async function handleFetch(req: Request, env: Env): Promise<Response> {
   const { url } = await req.json() as { url: string };
   if (!url) return err("url is required");
+  try {
+    assertPublicFetchUrl(url);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "URL not allowed", 400);
+  }
 
   const browser = await puppeteer.launch(env.BROWSER);
   try {
