@@ -110,7 +110,7 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
   const { url } = await req.json() as { url: string };
   if (!url) return err("url is required");
   try {
-    assertPublicFetchUrl(url);
+    await assertPublicFetchUrlResolved(url);
   } catch (e) {
     return err(e instanceof Error ? e.message : "URL not allowed", 400);
   }
@@ -120,8 +120,19 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
     const page = await browser.newPage();
     await page.setRequestInterception(true);
     page.on("request", (r) => {
-      if (["image", "stylesheet", "font", "media"].includes(r.resourceType())) r.abort();
-      else r.continue();
+      if (["image", "stylesheet", "font", "media"].includes(r.resourceType())) {
+        r.abort();
+        return;
+      }
+      if (r.isNavigationRequest() || r.resourceType() === "document") {
+        try {
+          assertPublicFetchUrl(r.url());
+        } catch {
+          r.abort();
+          return;
+        }
+      }
+      r.continue();
     });
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25_000 });
     const { title, content } = await page.evaluate(() => {
@@ -150,8 +161,15 @@ async function embed(env: Env, text: string): Promise<number[]> {
 }
 
 async function handleKnowledgeIndex(req: Request, env: Env): Promise<Response> {
-  const { content, title = "", author = "" } = await req.json() as { content: string; title?: string; author?: string };
+  const { content, title = "", author = "", channel_id = "" } = await req.json() as {
+    content: string;
+    title?: string;
+    author?: string;
+    channel_id?: string;
+  };
   if (!content) return err("content is required");
+  const channelId = channel_id.trim().slice(0, 64);
+  if (!channelId) return err("channel_id is required");
 
   const vector = await embed(env, content.slice(0, 4_000));
   const id = crypto.randomUUID();
@@ -160,6 +178,7 @@ async function handleKnowledgeIndex(req: Request, env: Env): Promise<Response> {
     id,
     values: vector,
     metadata: {
+      channel_id: channelId,
       title:     title.slice(0, 200),
       content:   content.slice(0, 2_000),
       author:    author.slice(0, 100),
@@ -171,11 +190,21 @@ async function handleKnowledgeIndex(req: Request, env: Env): Promise<Response> {
 }
 
 async function handleKnowledgeSearch(req: Request, env: Env): Promise<Response> {
-  const { query, topK = 5 } = await req.json() as { query: string; topK?: number };
+  const { query, topK = 5, channel_id = "" } = await req.json() as {
+    query: string;
+    topK?: number;
+    channel_id?: string;
+  };
   if (!query) return err("query is required");
+  const channelId = channel_id.trim().slice(0, 64);
+  if (!channelId) return err("channel_id is required");
 
   const vector  = await embed(env, query);
-  const results = await env.KNOWLEDGE.query(vector, { topK: Math.min(topK, 10), returnMetadata: "all" });
+  const results = await env.KNOWLEDGE.query(vector, {
+    topK: Math.min(topK, 10),
+    returnMetadata: "all",
+    filter: { channel_id: channelId },
+  });
 
   return json({
     results: results.matches.map(m => ({

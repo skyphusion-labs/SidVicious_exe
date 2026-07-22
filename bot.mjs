@@ -331,8 +331,13 @@ async function executeTool(name, input, ctx) {
     return res.ok ? res.json() : `Fetch error: ${res.status}`;
   }
   if (name === 'search_knowledge') {
+    if (!ctx.channelId) return 'Knowledge search requires channel context.';
     log(`[search] knowledge: ${input.query}`);
-    const res = await fetch(`${CFG.searchUrl}/knowledge/search`, { method: 'POST', headers, body: JSON.stringify({ query: input.query }) });
+    const res = await fetch(`${CFG.searchUrl}/knowledge/search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: input.query, channel_id: ctx.channelId }),
+    });
     return res.ok ? res.json() : `Knowledge search error: ${res.status}`;
   }
   return 'Unknown tool';
@@ -389,7 +394,7 @@ async function callAI(system, conversationMessages, ctx = { imageModel: DEFAULT_
 
 async function askLLM(channelId, userText, imageBlocks = []) {
   const session = await getSession(channelId);
-  const ctx = { imageModel: session.imageModel, generatedImages: [] };
+  const ctx = { imageModel: session.imageModel, generatedImages: [], channelId };
 
   const userContent = imageBlocks.length > 0 && anthropic
     ? [...imageBlocks, { type: 'text', text: userText }]
@@ -491,8 +496,9 @@ function imagesToAttachments(images, prefix = 'sid') {
 // Knowledge base (via search Worker + Vectorize)
 // ---------------------------------------------------------------------------
 
-async function indexKnowledge(content, title = '', author = '') {
+async function indexKnowledge(content, title = '', author = '', channelId = '') {
   if (!CFG.searchUrl || !CFG.searchSecret) return { ok: false, error: 'Search worker not configured' };
+  if (!channelId) return { ok: false, error: 'channel_id required' };
 
   let text = content;
   let resolvedTitle = title || content.slice(0, 80);
@@ -511,7 +517,7 @@ async function indexKnowledge(content, title = '', author = '') {
   const res = await fetch(`${CFG.searchUrl}/knowledge/index`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'X-Search-Secret': CFG.searchSecret },
-    body:    JSON.stringify({ content: text, title: resolvedTitle, author }),
+    body:    JSON.stringify({ content: text, title: resolvedTitle, author, channel_id: channelId }),
   });
   if (!res.ok) return { ok: false, error: `index failed ${res.status}` };
   const data = await res.json();
@@ -628,7 +634,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       case 'learn': {
         const content = interaction.options.getString('content');
         await interaction.deferReply();
-        const result = await indexKnowledge(content, '', authorName);
+        const result = await indexKnowledge(content, '', authorName, channelId);
         if (result.ok) {
           await interaction.editReply(`Stashed **${result.title}** (${result.words} words) in the knowledge base. I'll dig it up when it matters.`);
         } else {
@@ -729,7 +735,7 @@ client.on(Events.MessageCreate, async (message) => {
     if (!content) { await message.reply('Usage: `!learn <text or URL>`').catch(() => {}); return; }
 
     await message.reply('Indexing...').catch(() => {});
-    const result = await indexKnowledge(content, '', authorName);
+    const result = await indexKnowledge(content, '', authorName, channelId);
     if (result.ok) {
       await message.reply(`Stashed **${result.title}** (${result.words} words) in the knowledge base.`).catch(() => {});
     } else {
