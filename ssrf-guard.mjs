@@ -1,6 +1,9 @@
 /**
- * SSRF guard for bot-side fetches (#53).
+ * SSRF guard for bot-side fetches (#53, #57).
  */
+
+import http from 'node:http';
+import https from 'node:https';
 
 const BLOCKED_HOSTS = new Set([
   'localhost',
@@ -35,7 +38,7 @@ function validateHostname(host) {
   }
 }
 
-async function resolveHost(hostname) {
+async function resolveHostToIp(hostname) {
   if (isBlockedIp(hostname)) {
     throw new Error('URL host is not allowed');
   }
@@ -46,12 +49,12 @@ async function resolveHost(hostname) {
   if (!res.ok) throw new Error('URL host could not be resolved');
   const data = await res.json();
   const answers = data.Answer ?? [];
-  if (answers.length === 0) throw new Error('URL host could not be resolved');
   for (const ans of answers) {
-    if ((ans.type === 1 || ans.type === 28) && isBlockedIp(ans.data)) {
-      throw new Error('URL host is not allowed');
+    if (ans.type === 1 && !isBlockedIp(ans.data)) {
+      return ans.data;
     }
   }
+  throw new Error('URL host could not be resolved');
 }
 
 export function assertPublicFetchUrl(raw) {
@@ -74,12 +77,52 @@ export function assertPublicFetchUrl(raw) {
 export async function assertPublicFetchUrlResolved(raw) {
   const url = assertPublicFetchUrl(raw);
   if (!isBlockedIp(url.hostname)) {
-    await resolveHost(url.hostname);
+    await resolveHostToIp(url.hostname);
   }
   return url;
 }
 
+function fetchPinned(url, ip, init = {}) {
+  const mod = url.protocol === 'https:' ? https : http;
+  const headers = { ...(init.headers ?? {}), Host: url.hostname };
+  return new Promise((resolve, reject) => {
+    const req = mod.request(
+      {
+        hostname: ip,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: `${url.pathname}${url.search}`,
+        method: init.method || 'GET',
+        headers,
+        servername: url.protocol === 'https:' ? url.hostname : undefined,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          resolve(new Response(Buffer.concat(chunks), {
+            status: res.statusCode ?? 502,
+            headers: res.headers,
+          }));
+        });
+      },
+    );
+    req.on('error', reject);
+    if (init.body) req.write(init.body);
+    req.end();
+  });
+}
+
 export async function fetchPublicUrl(raw, init) {
-  const url = await assertPublicFetchUrlResolved(raw);
-  return fetch(url.toString(), { ...init, redirect: 'manual' });
+  const url = assertPublicFetchUrl(raw);
+  const ip = isBlockedIp(url.hostname) ? url.hostname : await resolveHostToIp(url.hostname);
+  if (isBlockedIp(ip)) {
+    throw new Error('URL host is not allowed');
+  }
+  return fetchPinned(url, ip, { ...init, redirect: 'manual' });
+}
+
+export function sanitizeFetchedContent(text, limit = 8000) {
+  return String(text)
+    .replace(/https?:\/\/[^\s<>"']+/gi, '[url]')
+    .slice(0, limit);
 }
