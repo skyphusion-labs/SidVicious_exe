@@ -8,11 +8,7 @@
 //   POST /knowledge/search  { query, topK?: number }
 
 import puppeteer from "@cloudflare/puppeteer";
-<<<<<<< HEAD
-import { assertPublicFetchUrlResolved } from "./ssrf";
-=======
-import { assertPublicFetchUrl, assertPublicFetchUrlResolved, sanitizeFetchedContent } from "./ssrf";
->>>>>>> origin/main
+import { assertPublicFetchUrlResolved, sanitizeFetchedContent } from "./ssrf";
 
 interface Env {
   BROWSER: Fetcher;
