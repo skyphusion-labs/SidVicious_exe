@@ -8,7 +8,7 @@
 //   POST /knowledge/search  { query, topK?: number }
 
 import puppeteer from "@cloudflare/puppeteer";
-import { assertPublicFetchUrl, assertPublicFetchUrlResolved } from "./ssrf";
+import { assertPublicFetchUrlResolved } from "./ssrf";
 
 interface Env {
   BROWSER: Fetcher;
@@ -119,20 +119,18 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
   try {
     const page = await browser.newPage();
     await page.setRequestInterception(true);
-    page.on("request", (r) => {
+    page.on("request", async (r) => {
       if (["image", "stylesheet", "font", "media"].includes(r.resourceType())) {
-        r.abort();
+        await r.abort();
         return;
       }
-      if (r.isNavigationRequest() || r.resourceType() === "document") {
-        try {
-          assertPublicFetchUrl(r.url());
-        } catch {
-          r.abort();
-          return;
-        }
+      try {
+        await assertPublicFetchUrlResolved(r.url());
+      } catch {
+        await r.abort();
+        return;
       }
-      r.continue();
+      await r.continue();
     });
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25_000 });
     const { title, content } = await page.evaluate(() => {
