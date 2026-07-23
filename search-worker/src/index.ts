@@ -8,7 +8,11 @@
 //   POST /knowledge/search  { query, topK?: number }
 
 import puppeteer from "@cloudflare/puppeteer";
+<<<<<<< HEAD
 import { assertPublicFetchUrlResolved } from "./ssrf";
+=======
+import { assertPublicFetchUrl, assertPublicFetchUrlResolved, sanitizeFetchedContent } from "./ssrf";
+>>>>>>> origin/main
 
 interface Env {
   BROWSER: Fetcher;
@@ -141,7 +145,7 @@ async function handleFetch(req: Request, env: Env): Promise<Response> {
         content: (document.body?.innerText ?? "").replace(/\s{3,}/g, "\n\n").trim().slice(0, 10_000),
       };
     });
-    return json({ url, title, content });
+    return json({ url, title, content: sanitizeFetchedContent(content) });
   } catch (e: unknown) {
     return err(`Browser fetch failed: ${e instanceof Error ? e.message : String(e)}`, 500);
   } finally {

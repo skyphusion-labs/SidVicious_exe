@@ -40,7 +40,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AttachmentBuilder, Client, GatewayIntentBits, Partials, Events, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { appendFileSync, existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
-import { fetchPublicUrl } from './ssrf-guard.mjs';
+import { fetchPublicUrl, sanitizeFetchedContent } from './ssrf-guard.mjs';
 import {
   DEFAULT_IMAGE_MODEL,
   IMAGE_MODELS,
@@ -328,7 +328,12 @@ async function executeTool(name, input, ctx) {
   if (name === 'fetch_page') {
     log(`[search] fetch: ${input.url}`);
     const res = await fetch(`${CFG.searchUrl}/fetch`, { method: 'POST', headers, body: JSON.stringify({ url: input.url }) });
-    return res.ok ? res.json() : `Fetch error: ${res.status}`;
+    if (!res.ok) return `Fetch error: ${res.status}`;
+    const data = await res.json();
+    if (data && typeof data.content === 'string') {
+      data.content = sanitizeFetchedContent(data.content);
+    }
+    return data;
   }
   if (name === 'search_knowledge') {
     if (!ctx.channelId) return 'Knowledge search requires channel context.';

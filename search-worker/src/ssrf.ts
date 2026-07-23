@@ -36,11 +36,10 @@ function validateHostname(host: string): void {
   }
 }
 
-async function resolveHost(hostname: string): Promise<void> {
+async function resolveHostToIp(hostname: string): Promise<string> {
   if (isBlockedIp(hostname)) {
     throw new Error("URL host is not allowed");
   }
-  // Literal IPs are checked above; hostnames need DNS resolution (rebinding defense).
   const res = await fetch(
     `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
     { headers: { Accept: "application/dns-json" } },
@@ -49,15 +48,12 @@ async function resolveHost(hostname: string): Promise<void> {
     throw new Error("URL host could not be resolved");
   }
   const data = (await res.json()) as { Answer?: Array<{ type: number; data: string }> };
-  const answers = data.Answer ?? [];
-  if (answers.length === 0) {
-    throw new Error("URL host could not be resolved");
-  }
-  for (const ans of answers) {
-    if ((ans.type === 1 || ans.type === 28) && isBlockedIp(ans.data)) {
-      throw new Error("URL host is not allowed");
+  for (const ans of data.Answer ?? []) {
+    if (ans.type === 1 && !isBlockedIp(ans.data)) {
+      return ans.data;
     }
   }
+  throw new Error("URL host could not be resolved");
 }
 
 export function assertPublicFetchUrl(raw: string): URL {
@@ -81,12 +77,24 @@ export function assertPublicFetchUrl(raw: string): URL {
 export async function assertPublicFetchUrlResolved(raw: string): Promise<URL> {
   const url = assertPublicFetchUrl(raw);
   if (!isBlockedIp(url.hostname)) {
-    await resolveHost(url.hostname);
+    await resolveHostToIp(url.hostname);
   }
   return url;
 }
 
 export async function fetchPublicUrl(raw: string, init?: RequestInit): Promise<Response> {
-  const url = await assertPublicFetchUrlResolved(raw);
-  return fetch(url.toString(), { ...init, redirect: "manual" });
+  const url = assertPublicFetchUrl(raw);
+  const ip = isBlockedIp(url.hostname) ? url.hostname : await resolveHostToIp(url.hostname);
+  if (isBlockedIp(ip)) {
+    throw new Error("URL host is not allowed");
+  }
+  const pinned = new URL(url.toString());
+  pinned.hostname = ip;
+  const headers = new Headers(init?.headers);
+  headers.set("Host", url.hostname);
+  return fetch(pinned.toString(), { ...init, headers, redirect: "manual" });
+}
+
+export function sanitizeFetchedContent(text: string, limit = 8000): string {
+  return String(text).replace(/https?:\/\/[^\s<>"']+/gi, "[url]").slice(0, limit);
 }
