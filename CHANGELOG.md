@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+fix(security): Puppeteer fetch validates every subresource URL with DNS-pinned SSRF guard (#984 K3)
+
 ## v0.2.2
 
 fix(security): SSRF guards on fetch/image paths and channel-scoped knowledge base (#54, #55)
