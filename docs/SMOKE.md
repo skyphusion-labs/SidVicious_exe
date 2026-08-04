@@ -3,8 +3,9 @@
 Run against a live guild before tagging a release (unit tests cannot reach Discord).
 Every line is pass/fail; a fail blocks the tag.
 
-Setup: roadie running with full config (CF token + account, D1, search worker) in a test
-channel listed in `DISCORD_CHANNEL_IDS`.
+Setup: roadie **v0.2.6+** with full config (CF Run token + account, D1, search worker with AI
+binding) in a test channel listed in `DISCORD_CHANNEL_IDS`. Search Worker must be deployed from
+the same release line so `POST /image` exists.
 
 ## Chat + history
 - [ ] Plain message in the listen channel gets an in-character reply
@@ -20,11 +21,12 @@ channel listed in `DISCORD_CHANNEL_IDS`.
 - [ ] After `!learn`, a related question surfaces the learned content (`search_knowledge`)
 
 ## Images
-- [ ] `!image a punk flyer` returns an attachment (default FLUX Schnell)
+- [ ] `!image a punk flyer` returns an attachment (default FLUX Schnell via search-worker `/image`)
+- [ ] Logs show `done via search-worker` (not a 401 from account `/ai/run`)
 - [ ] `/image` (slash) does the same via deferred reply
 - [ ] `!model` lists the catalog with the active model marked
 - [ ] `!model sdxl` switches; the next `!image` uses SDXL; `!model garbage` is rejected
-- [ ] A FLUX 2 model (multipart path) generates (e.g. `!model flux2-fast`)
+- [ ] A FLUX 2 model generates (e.g. `!model flux2-fast`) via the Worker path
 - [ ] "draw me a ..." in plain chat triggers the `generate_image` tool + attachment
 
 ## Vision
@@ -36,9 +38,9 @@ channel listed in `DISCORD_CHANNEL_IDS`.
 - [ ] `!reset`, restart: history stays empty; image model back to default
 
 ## Failure modes
-- [ ] Stop the search worker: search-y questions degrade gracefully (tool error text, no crash)
-- [ ] Break `CF_API_TOKEN`: `!image` reports failure WITHOUT leaking the account id or token
-  (check the reply text for the raw values -- must show `[redacted]`)
+- [ ] Stop the search worker: search-y questions degrade gracefully; `@cf/*` images fail without crash
+- [ ] Break `CF_API_TOKEN`: chat fails; replies do NOT leak account id or token (`[redacted]`)
+- [ ] Mis-set Run token only (no SEARCH_*): image path error mentions search worker / Workers AI, no secret leak
 
 ## Slash parity
 - [ ] `/image`, `/model`, `/learn`, `/reset` all registered and behave like the bang commands

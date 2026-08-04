@@ -4,8 +4,9 @@
 //   GET  /health
 //   POST /search  { query, type?: "web"|"research" }
 //   POST /fetch   { url }
-//   POST /knowledge/index   { content, title?, author? }
-//   POST /knowledge/search  { query, topK?: number }
+//   POST /image   { prompt, model?, width?, height? }  // Workers AI @cf/* only
+//   POST /knowledge/index   { content, title?, author?, channel_id }
+//   POST /knowledge/search  { query, topK?, channel_id }
 
 import puppeteer from "@cloudflare/puppeteer";
 import { assertPublicFetchUrlResolved, sanitizeFetchedContent } from "./ssrf";
