@@ -56,8 +56,10 @@ typechecks (`npm run typecheck`). `npm test` runs the Vitest suite: `bot.test.ts
 imports `bot.mjs` against mocked tokens, and `helpers.test.mjs` unit-tests the pure logic in
 `lib/helpers.mjs` (no mocks). CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
 fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `code-coverage.yml` runs the Vitest
-suite; `deploy.yml` deploys `sidvicious-search` on a green push to `main`. The bot itself is NOT
-deployed by CI: it is a deliberate host-side Docker step on the `<deploy-host>` (`stacks/compose.prod.yml`).
+suite. **`deploy.yml` deploys `sidvicious-search` only on a pushed `v*` tag**, never on a bare
+merge to `main` (main runs CI only). The bot itself is NOT deployed by CI: it is a deliberate
+host-side Docker step on the `<deploy-host>` (`stacks/compose.prod.yml`). GHCR roadie image builds
+on version tags via `image.yml` (`v*.*.*`).
 
 ## Cloudflare setup
 
@@ -132,4 +134,30 @@ Plain chat (and `@mention` / DM) is handled directly; the channels the roadie li
 
 Conventional Commits (`feat(scope):` / `fix(scope):` / `docs:` / `ci:`); the body explains the why.
 SemVer-style `0.MINOR.PATCH` while pre-1.0 (PATCH for fixes / backend tweaks, MINOR for new
-features); bump `package.json` `version` in a release commit.
+features); bump root `package.json` `version` in a release PR.
+
+## Release / tagging
+
+**TAG-GATED Worker deploy.** `.github/workflows/deploy.yml` runs on pushed `v*` tags (deploy step
+guarded on the tag ref). Merge to `main` runs CI only and does **not** redeploy `sidvicious-search`.
+
+| Tag / event | Workflow | Effect |
+|-------------|----------|--------|
+| `v*` | `deploy.yml` | Deploy `sidvicious-search` Worker |
+| `v*.*.*` | `image.yml` | Build/push roadie image to GHCR |
+| GitHub Release **published** | `publish-npm.yml` | Publish `@skyphusion/sidvicious-exe` (release tag must equal `v` + `package.json` version) |
+
+### Cut a release
+
+1. **Release PR on `main`:** bump `package.json` version, land the PR.
+2. **Tag:**
+
+```bash
+git fetch origin main && git checkout main && git pull --ff-only
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+3. Confirm `deploy.yml` (and `image.yml` if the image path matches) green.
+4. For npm: `gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes` so `publish-npm.yml` runs.
+5. Bot stack on the deploy host remains a deliberate compose pull/redeploy, not CI.
