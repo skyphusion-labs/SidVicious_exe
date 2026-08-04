@@ -42,7 +42,7 @@ of the two.
 
 | Command | Success | Failure |
 |---------|---------|---------|
-| `!image <prompt>` / `/image` | progress line, then image attachment | "not configured" without CF creds; upstream error text (redacted) on API failure |
+| `!image <prompt>` / `/image` | progress line, then image attachment | `@cf/*` models: via search Worker AI binding (needs `SEARCH_WORKER_URL` + secret). Gateway third-party models: account `/ai/run` (needs CF API token with Workers AI; AIG Run tokens get a clear 401 message). |
 | `!model` / `/model` | catalog with the active model marked | -- |
 | `!model <name>` | switches (alias, exact id, or partial id match) + persists | "Never heard of ..." on no match |
 | `!learn <text\|url>` / `/learn` | URL is fetched via the search worker first, then indexed to Vectorize; replies with title + word count | "not configured" without the search worker; index/fetch errors reported |

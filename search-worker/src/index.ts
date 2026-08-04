@@ -62,12 +62,75 @@ export default {
 
     if (url.pathname === "/search")           return handleSearch(req, env);
     if (url.pathname === "/fetch")            return handleFetch(req, env);
+    if (url.pathname === "/image")            return handleImage(req, env);
     if (url.pathname === "/knowledge/index")  return handleKnowledgeIndex(req, env);
     if (url.pathname === "/knowledge/search") return handleKnowledgeSearch(req, env);
 
     return err("Not found", 404);
   },
 };
+
+// ---------------------------------------------------------------------------
+// Image generation via Workers AI binding (no account API token needed)
+// ---------------------------------------------------------------------------
+
+/** Models the bot may request; keeps the Worker from becoming an open model proxy. */
+const ALLOWED_IMAGE_MODELS = new Set([
+  "@cf/black-forest-labs/flux-1-schnell",
+  "@cf/black-forest-labs/flux-2-klein-4b",
+  "@cf/black-forest-labs/flux-2-klein-9b",
+  "@cf/black-forest-labs/flux-2-dev",
+  "@cf/leonardo/phoenix-1.0",
+  "@cf/leonardo/lucid-origin",
+  "@cf/lykon/dreamshaper-8-lcm",
+  "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+]);
+
+async function handleImage(req: Request, env: Env): Promise<Response> {
+  const body = await req.json() as {
+    prompt?: string;
+    model?: string;
+    width?: number;
+    height?: number;
+  };
+  const prompt = (body.prompt ?? "").trim();
+  if (!prompt) return err("prompt is required");
+  if (prompt.length > 4_000) return err("prompt too long", 400);
+
+  const model = (body.model ?? "@cf/black-forest-labs/flux-1-schnell").trim();
+  if (!model.startsWith("@cf/")) {
+    return err(
+      "only Workers AI @cf/* models are supported on /image (gateway third-party models need a CF account API token on the roadie)",
+      400,
+    );
+  }
+  if (!ALLOWED_IMAGE_MODELS.has(model)) {
+    return err(`model not allowed: ${model}`, 400);
+  }
+
+  const width = Math.min(Math.max(Number(body.width) || 1024, 256), 2048);
+  const height = Math.min(Math.max(Number(body.height) || 1024, 256), 2048);
+
+  try {
+    // Workers AI image models return { image: base64 } (or image as data URL).
+    const result = await env.AI.run(model as Parameters<typeof env.AI.run>[0], {
+      prompt,
+      width,
+      height,
+    } as Record<string, unknown>) as { image?: string; images?: string[] };
+
+    const image = result?.image ?? result?.images?.[0];
+    if (!image || typeof image !== "string") {
+      return err("Workers AI returned no image", 502);
+    }
+    // Strip data-URL prefix if present so the bot always gets raw base64.
+    const b64 = image.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+    return json({ image: b64, model });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return err(`Workers AI image failed: ${msg.slice(0, 300)}`, 502);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Web search (Brave) + deep research (Tavily)

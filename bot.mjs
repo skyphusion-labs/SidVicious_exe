@@ -459,16 +459,57 @@ async function parseImageResponse(data, label) {
   return { ok: true, ...parsed };
 }
 
+/**
+ * Image generation.
+ *
+ * Prefer the search Worker `/image` path for `@cf/*` Workers AI models: that
+ * uses the Worker's AI binding and works with the AI Gateway *Run* token the
+ * roadie already holds for chat. Direct `api.cloudflare.com/.../ai/run` needs a
+ * full account API token with Workers AI permission; Run tokens return 401
+ * (live miss 2026-08-04). Third-party gateway models still use /ai/run when a
+ * capable CF_API_TOKEN is configured.
+ */
 async function generateImage(prompt, imageModel, label = 'image') {
-  if (!imageGenReady) {
-    return { ok: false, error: 'CF_API_TOKEN and CF_ACCOUNT_ID not configured' };
-  }
-
   const model = imageModel ?? DEFAULT_IMAGE_MODEL;
   log(`[${label}] generating model=${model} gateway=${CFG.aigGatewayId}`);
 
-  let res;
+  // Workers AI (@cf/*): proxy through search-worker AI binding when available.
+  if (model.startsWith('@cf/') && CFG.searchUrl && CFG.searchSecret) {
+    try {
+      const res = await fetch(`${CFG.searchUrl.replace(/\/$/, '')}/image`, {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Search-Secret': CFG.searchSecret,
+        },
+        body: JSON.stringify({ prompt, model, width: 1024, height: 1024 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error ?? JSON.stringify(data).slice(0, 200);
+        return { ok: false, error: `image gen failed ${res.status}: ${msg}` };
+      }
+      if (!data?.image) return { ok: false, error: 'no image in search-worker response' };
+      const parsed = await bufferFromImageField(data.image);
+      if (!parsed) return { ok: false, error: 'could not decode image from search-worker' };
+      log(`[${label}] done via search-worker (${parsed.buffer.length} bytes)`);
+      return { ok: true, ...parsed };
+    } catch (e) {
+      return { ok: false, error: `image gen (search-worker) failed: ${scrub(e.message)}` };
+    }
+  }
 
+  if (!imageGenReady) {
+    return {
+      ok: false,
+      error: model.startsWith('@cf/')
+        ? 'Workers AI images need SEARCH_WORKER_URL + SEARCH_SECRET (or a CF account API token with Workers AI for /ai/run)'
+        : 'CF_API_TOKEN and CF_ACCOUNT_ID not configured for gateway image models',
+    };
+  }
+
+  // Account REST /ai/run (needs a real CF API token, not an AIG Run token).
+  let res;
   if (MULTIPART_IMAGE_MODELS.has(model)) {
     const form = new FormData();
     form.append('prompt', prompt);
@@ -490,6 +531,12 @@ async function generateImage(prompt, imageModel, label = 'image') {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.success === false) {
     const err = JSON.stringify(data.errors ?? data).slice(0, 300);
+    if (res.status === 401) {
+      return {
+        ok: false,
+        error: `image gen failed 401: account /ai/run rejected the token. For @cf/* models set SEARCH_WORKER_URL; for gateway image models use a CF API token with Workers AI (AIG Run tokens only work for chat). Detail: ${err}`,
+      };
+    }
     return { ok: false, error: `image gen failed ${res.status}: ${err}` };
   }
 

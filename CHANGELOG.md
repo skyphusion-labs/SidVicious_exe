@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.6
+
+PATCH (image gen 401 fix):
+
+- **Root cause:** AI Gateway Run tokens work for Claude chat but return **401** on
+  `api.cloudflare.com/.../ai/run` (Workers AI REST).
+- **Fix:** `POST /image` on the search Worker uses the `AI` binding for `@cf/*`
+  models; the roadie prefers that path when `SEARCH_WORKER_URL` is set.
+- Clearer 401 error when the REST fallback is used with a Run token.
+
 ## v0.2.5
 
 PATCH (packaging + D1 gate + undici):
