@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.4
+
+PATCH: dependency updates (postcss, ip-address, etc.) and security CI follow-through on main since v0.2.3. Tag deploys sidvicious-search Worker.
+
 ## v0.2.3
 
 fix(security): Puppeteer fetch validates every subresource URL with DNS-pinned SSRF guard (#984 K3)
