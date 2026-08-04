@@ -9,7 +9,7 @@ naturally, ask it to look things up, or have it generate visuals. Chat routes th
 AI Gateway native Anthropic path (Claude); image generation uses the Cloudflare AI `run` API
 (Workers AI + Gateway image models). A single `CF_API_TOKEN` (AI Gateway permission) covers both.
 The punk personality is intentional: direct, honest, useful, no corporate sycophancy. Currently
-**v0.2.0**, published to npm as `@skyphusion/sidvicious-exe` (release-gated publish workflow). Runs
+**v0.2.5**, published to npm as `@skyphusion/sidvicious-exe` (release-gated publish workflow). Runs
 as a Docker stack on the `<deploy-host>`; the search backend is a Cloudflare Worker.
 
 ## Structure

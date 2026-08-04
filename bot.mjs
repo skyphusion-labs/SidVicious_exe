@@ -148,7 +148,9 @@ log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=
 const sessions = new Map();
 
 async function d1Query(sql, params = []) {
-  if (!CFG.d1Token) throw new Error('CF_D1_TOKEN not configured');
+  if (!CFG.d1Token || !CFG.d1DatabaseId || !CFG.d1AccountId) {
+    throw new Error('D1 not configured (need CF_D1_DATABASE_ID + account + token)');
+  }
   const url = `https://api.cloudflare.com/client/v4/accounts/${CFG.d1AccountId}/d1/database/${CFG.d1DatabaseId}/query`;
   const res = await fetch(url, {
     method:  'POST',
@@ -165,7 +167,10 @@ async function d1Query(sql, params = []) {
 }
 
 async function initD1() {
-  if (!CFG.d1Token) return;
+  // Token alone is not enough: CF_API_TOKEN is reused as d1Token when
+  // CF_D1_TOKEN is unset, so chat-only configs without a database id used to
+  // POST /d1/database//query and log a noisy 405. Require both.
+  if (!CFG.d1Token || !CFG.d1DatabaseId || !CFG.d1AccountId) return;
   try {
     await d1Query(`CREATE TABLE IF NOT EXISTS sessions (
       channel_id TEXT PRIMARY KEY,

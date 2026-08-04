@@ -9,8 +9,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# Application source.
-COPY bot.mjs ./
+# Application source (ssrf-guard is imported by bot.mjs; must ship in the image).
+COPY bot.mjs ssrf-guard.mjs ./
 COPY lib/ ./lib/
 
 # Logs go to stdout in container mode.
