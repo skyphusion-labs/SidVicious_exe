@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.5
+
+PATCH (packaging + D1 gate + undici):
+
+- **Ship `ssrf-guard.mjs`** in the Docker image and npm package (`files` + Dockerfile). `bot.mjs` imports it; without this, `npx` and GHCR images fail at module load.
+- **D1 init guard:** only open D1 when token **and** `CF_D1_DATABASE_ID` (and account) are set. Stops noisy `D1 405` when chat uses `CF_API_TOKEN` without a sessions database.
+- **undici** override `6.27.0` → `6.28.0` (npm audit clean).
+- Packaging contract tests (`package.test.mjs`).
+
+Tag deploys search Worker + GHCR roadie image. Bump fleet pin to `0.2.5`.
+
 ## v0.2.4
 
 PATCH: dependency updates (postcss, ip-address, etc.) and security CI follow-through on main since v0.2.3. Tag deploys sidvicious-search Worker.
