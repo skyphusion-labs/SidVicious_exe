@@ -6,30 +6,33 @@ Guidance for Claude Code (and the crew) working in this repo.
 
 **SidVicious_exe: a punk rock Discord roadie for web search and image generation.** Talk to it
 naturally, ask it to look things up, or have it generate visuals. Chat routes through the Cloudflare
-AI Gateway native Anthropic path (Claude); image generation uses the Cloudflare AI `run` API
-(Workers AI + Gateway image models). A single `CF_API_TOKEN` (AI Gateway permission) covers both.
-The punk personality is intentional: direct, honest, useful, no corporate sycophancy. Currently
-**v0.2.6**, published to npm as `@skyphusion/sidvicious-exe` (release-gated publish workflow). Runs
-as a Docker stack on the `<deploy-host>`; the search backend is a Cloudflare Worker.
+AI Gateway native Anthropic path (Claude) with an AI Gateway **Run** token. Default `@cf/*` images
+go through the search Worker **AI binding** (`POST /image`); account `/ai/run` is only for
+third-party gateway models with a real account API token. The punk personality is intentional:
+direct, honest, useful, no corporate sycophancy. Currently **v0.2.6**, published to npm as
+`@skyphusion/sidvicious-exe`. Roadie runs as a Docker/GHCR stack on the deploy host; search is a
+Cloudflare Worker (`sidvicious-search`).
 
 ## Structure
 
 ```
-bot.mjs                  Node 24+ Discord roadie (main entry point, ~36KB)
-lib/helpers.mjs          Pure, network-free logic extracted from bot.mjs (#39); unit-tested
-package.json             Roadie deps (@anthropic-ai/sdk, discord.js); scripts: roadie, bot, test
-bot.test.ts              Vitest boot smoke (imports bot.mjs against mocked env)
-helpers.test.mjs         Vitest unit tests for lib/helpers.mjs (pure logic, no mocks)
-.env.example             Env template (DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN, ...)
-Dockerfile               Self-contained image (node:24-slim, non-root)
+bot.mjs                  Node 24+ Discord roadie (main entry)
+ssrf-guard.mjs           SSRF-safe fetch for bot-side URL pulls (must ship in Docker + npm)
+lib/helpers.mjs          Pure, network-free logic (#39); unit-tested
+package.json             Roadie deps; scripts: roadie, bot, test
+package.test.mjs         Packaging contract (ssrf-guard in files + Dockerfile)
+bot.test.ts              Vitest boot smoke
+helpers.test.mjs         Vitest unit tests for lib/helpers.mjs
+.env.example             Env template
+Dockerfile               node:24-slim; copies bot.mjs, ssrf-guard.mjs, lib/
 docs/
-  BEHAVIOR.md            Behavior + failure-mode contract for the user-facing surface (#39)
-  SMOKE.md               Manual Discord smoke checklist (run before tagging a release)
-search-worker/           Cloudflare Worker `sidvicious-search`: web search + knowledge base
-  src/index.ts           Worker source
-  wrangler.toml          Bindings: BROWSER, AI, KNOWLEDGE (Vectorize: sidvicious-knowledge)
+  BEHAVIOR.md            Behavior + failure-mode contract
+  SMOKE.md               Manual Discord smoke checklist
+search-worker/           Worker `sidvicious-search`
+  src/index.ts           /search /fetch /image /knowledge/*
+  wrangler.toml          BROWSER, AI, KNOWLEDGE (Vectorize)
 stacks/
-  compose.prod.yml           Docker Compose stack (loads stacks/.env)
+  compose.prod.yml       Bind-mount dev compose (prod prefers GHCR pin via fleet IaC)
 ```
 
 ## Commands
@@ -39,7 +42,7 @@ cp .env.example .env       # fill in DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
 npm install
 npm run roadie             # node --env-file-if-exists=.env bot.mjs (run the roadie locally)
 node --check bot.mjs       # parse check -- the CI gate for the bot
-npm test                   # vitest: boot smoke (bot.test.ts) + helpers.test.mjs (16 tests)
+npm test                   # vitest: helpers + package contract + boot smoke
 cd search-worker && npm run typecheck && npm run deploy   # the search worker
 ```
 
@@ -63,33 +66,30 @@ on version tags via `image.yml` (`v*.*.*`).
 
 ## Cloudflare setup
 
-One API token with **AI Gateway** permission covers chat and images (add D1 Edit for session
-persistence).
+| Feature | How it authenticates | Endpoint / binding |
+|---------|----------------------|--------------------|
+| Chat (Claude) | AI Gateway **Run** token (`CF_API_TOKEN` / `CF_AIG_TOKEN`) | `…/anthropic/v1/messages` |
+| Images `@cf/*` | Search Worker `X-Search-Secret` + Worker **AI** binding | `POST {SEARCH_WORKER_URL}/image` |
+| Images third-party | Account API token with Workers AI (not a Run token alone) | `POST …/accounts/{id}/ai/run` |
+| D1 sessions | Token + `CF_D1_DATABASE_ID` + account | D1 REST `/query` |
+| Search / knowledge | `SEARCH_SECRET` | Worker `/search`, `/fetch`, `/knowledge/*` |
 
-| Feature | Endpoint |
-|---------|----------|
-| Chat (Claude) | `POST gateway.ai.cloudflare.com/v1/{id}/{gateway}/anthropic/v1/messages` (native Anthropic path) |
-| Images | `POST api.cloudflare.com/client/v4/accounts/{id}/ai/run` |
-| D1 sessions | Cloudflare REST API (optional) |
-
-Default gateway name is `skyphusion-llm` (`CF_AIG_GATEWAY_ID`); override for a custom gateway.
+Default gateway name is `skyphusion-llm` (`CF_AIG_GATEWAY_ID`).
 
 ## Architecture
 
 - **Chat is Claude via the AI Gateway** (`anthropic/claude-sonnet-4-6` by default when a CF token is
   set; `DISCORD_MODEL` overrides). With no CF token it falls back to ollama (`OLLAMA_BASE_URL`, chat
-  only, no images).
-- **Tool-use loop**: `web_search` (Brave), `research` (Tavily, deep), `fetch_page` (CF Browser
-  Rendering), `search_knowledge` (Vectorize) -- all proxied through the `sidvicious-search` worker
-  (shared `SEARCH_SECRET` in the `X-Search-Secret` header).
-- **Vision input**: paste images into the channel (up to 3 per message, 4 MB each); Claude reads them
-  as image content blocks.
-- **Image generation**: Workers AI (FLUX, Phoenix, SDXL) and AI Gateway image models (GPT Image,
-  Recraft, and more) via `/ai/run`; `!model` switches the active image model.
-- **D1 session state** (optional): conversation history persists across restarts when `CF_D1_*` is
-  configured; otherwise it is in-memory with a rolling `DISCORD_HISTORY` depth (default 20).
-- **Knowledge base**: `!learn <text|url>` indexes references into the Vectorize index
-  `sidvicious-knowledge`.
+  only).
+- **Tool-use loop**: `web_search` (Brave), `research` (Tavily), `fetch_page` (Browser Rendering),
+  `search_knowledge` (Vectorize), `generate_image` -- search tools and default images go through
+  `sidvicious-search` (`X-Search-Secret`).
+- **Vision input**: up to 3 image attachments per message, 4 MB each (Claude path only).
+- **Image generation**: `@cf/*` models prefer Worker `/image` (AI binding). REST `/ai/run` is a
+  fallback for non-`@cf` catalog entries when a capable account token is configured. `!model` switches.
+- **D1** (optional): init only when account + database id + token are all set; otherwise in-memory
+  history (`DISCORD_HISTORY` pairs, default 20).
+- **Knowledge base**: `!learn` indexes into Vectorize `sidvicious-knowledge`, filtered by channel id.
 
 ## Commands (Discord)
 

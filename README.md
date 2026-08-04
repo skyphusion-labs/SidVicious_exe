@@ -15,13 +15,16 @@ We call it a roadie, not a bot. A bot is a vending machine; this is a collaborat
 ## Features
 
 - **Punk rock roadie personality** -- raw, direct, irreverent. Helpful underneath the leather jacket.
-- **Claude via Cloudflare** -- Anthropic SDK pointed at the AI Gateway native Anthropic path (`gateway.ai.cloudflare.com/v1/{account}/{gateway}/anthropic`); ollama fallback when `CF_API_TOKEN` is unset
+- **Claude via Cloudflare** -- Anthropic SDK on the AI Gateway native Anthropic path (`…/anthropic`); ollama fallback when `CF_API_TOKEN` is unset
 - **Vision input** -- paste images into the channel; Claude reads them (up to 3 per message, 4 MB each)
 - **Web search + deep research** -- Brave Search, Tavily, and Cloudflare Browser Rendering via the search Worker
-- **Knowledge base** -- `!learn <text or URL>` indexes references into Vectorize
-- **Image generation** -- Workers AI (FLUX, Phoenix, SDXL) and AI Gateway models (GPT Image, Recraft, and more) via `/ai/run`
-- **D1 session state** -- conversation history persists across restarts (optional)
+- **Knowledge base** -- `!learn <text or URL>` indexes references into Vectorize (channel-scoped)
+- **Image generation** -- default `@cf/*` Workers AI models (FLUX, Phoenix, SDXL, …) via the search Worker **AI binding** (`POST /image`); optional account `/ai/run` for third-party gateway models when you have a capable API token
+- **D1 session state** -- conversation history persists across restarts when database id + token are set
 - **Slash commands** -- `/image`, `/model`, `/learn`, `/reset`
+- **npm package** -- `@skyphusion/sidvicious-exe` (roadie only; ships `bot.mjs`, `ssrf-guard.mjs`, `lib/`)
+
+Current release: **v0.2.6**.
 
 ---
 
@@ -30,20 +33,22 @@ We call it a roadie, not a bot. A bot is a vending machine; this is a collaborat
 ```
 Discord channel
       |
-   bot.mjs
+   bot.mjs  (+ ssrf-guard.mjs, lib/helpers.mjs)
       |
-      +-- gateway.ai.cloudflare.com/v1/{id}/{gateway}/anthropic
-      |       --> Claude (anthropic/claude-sonnet-4-6)
+      +-- gateway.ai.cloudflare.com/v1/{account}/{gateway}/anthropic
+      |       --> Claude chat (AI Gateway Run token / Unified Billing)
       |
-      +-- api.cloudflare.com/client/v4/accounts/{id}/ai/run
-      |       --> Workers AI + Gateway image models
+      +-- sidvicious-search Worker (recommended)
+      |       web_search, research, fetch_page, knowledge
+      |       POST /image  --> Workers AI binding (@cf/* models)
+      |
+      +-- api.cloudflare.com/.../ai/run  (optional fallback)
+      |       third-party gateway image models; needs account API token with Workers AI
       |
       +-- D1 (optional)        session history
-      |
-      +-- sidvicious-search Worker (optional)
-              web_search, research, fetch_page, knowledge
 
-Chat routes through the AI Gateway (gateway id: skyphusion-llm); one CF_API_TOKEN covers it all.
+Chat uses an AI Gateway Run token. Workers AI images prefer the search Worker AI binding
+(Run tokens get 401 on account /ai/run). Search tools and default images need SEARCH_*.
 ```
 
 ---
@@ -54,12 +59,13 @@ Chat routes through the AI Gateway (gateway id: skyphusion-llm); one CF_API_TOKE
 npx @skyphusion/sidvicious-exe        # or: npm i -g @skyphusion/sidvicious-exe && sidvicious
 ```
 
-The package ships the roadie only (`bot.mjs` + `lib/`); configure it with the same env vars
-as below (`.env` in the working directory is honored). **What is NOT on npm:** the
+The package ships the roadie only (`bot.mjs`, `ssrf-guard.mjs`, `lib/`); configure it with the
+same env vars as below (`.env` in the working directory is honored). **What is NOT on npm:** the
 `search-worker/` Cloudflare Worker -- deploy that from this repo with wrangler and point
-`SEARCH_WORKER_URL` at it (search/knowledge tools stay off without it, everything else
-works). For a long-running deployment prefer the Docker stack below. Behavior contract:
-[docs/BEHAVIOR.md](docs/BEHAVIOR.md); pre-release manual checklist: [docs/SMOKE.md](docs/SMOKE.md).
+`SEARCH_WORKER_URL` at it. Without the search Worker you still get chat (and ollama fallback);
+search tools and reliable `@cf/*` image gen stay off. For a long-running deployment prefer the
+GHCR / Compose stack below. Behavior contract: [docs/BEHAVIOR.md](docs/BEHAVIOR.md); pre-release
+checklist: [docs/SMOKE.md](docs/SMOKE.md).
 
 ## Setup
 
@@ -75,28 +81,34 @@ Create an application at the [Discord Developer Portal](https://discord.com/deve
 
 ```bash
 wrangler whoami          # copy account id -> CF_ACCOUNT_ID
-wrangler auth token      # copy token      -> CF_API_TOKEN
 ```
 
-Your API token needs **AI Gateway** permission. Add **D1 Edit** if you want session persistence.
+For **chat**, use an **AI Gateway Run token** (or Unified Billing token) as `CF_API_TOKEN`
+(alias `CF_AIG_TOKEN`). That is the token you use with `cf-aig-authorization` on the gateway.
+Default gateway name: `skyphusion-llm` (`CF_AIG_GATEWAY_ID`).
 
-Create a D1 database (optional):
+For **session persistence**, create D1 and a token with **D1 Edit** (or a dedicated `CF_D1_TOKEN`):
 
 ```bash
 wrangler d1 create sidvicious-sessions   # copy id -> CF_D1_DATABASE_ID
 ```
 
-### 3. Run the roadie
+D1 only initializes when **account + database id + token** are all set (token alone is not enough).
+
+### 3. Run the roadie (chat only)
 
 ```bash
-cp .env.example .env     # fill in DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
+cp .env.example .env     # fill DISCORD_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
 npm install
 npm run roadie
 ```
 
-That's it for chat + images. The default gateway name is `skyphusion-llm`.
+Chat works without the search Worker. For **search, knowledge, and default image gen**, deploy step 4.
 
-### 4. Search worker (optional)
+### 4. Search worker (recommended)
+
+Required for Brave/Tavily/Browser tools, `!learn`, and **`@cf/*` image generation** (Workers AI
+binding on the Worker -- works with the same Run-token style setup the roadie uses for chat).
 
 ```bash
 cd search-worker && npm install
@@ -107,42 +119,33 @@ npx wrangler secret put SEARCH_SECRET
 npm run deploy
 ```
 
-Add `SEARCH_WORKER_URL` and `SEARCH_SECRET` to your `.env`.
+Add `SEARCH_WORKER_URL` and `SEARCH_SECRET` to the roadie `.env`. Worker routes (all except
+`/health` need `X-Search-Secret`): `POST /search`, `/fetch`, `/image`, `/knowledge/index`,
+`/knowledge/search`.
+
+Optional: third-party **gateway image models** (GPT Image, Recraft, …) still use account
+`/ai/run` and need a **Cloudflare account API token** with Workers AI, not a Run token alone.
 
 ---
 
 ## Deployment
 
-Two supported paths: a bind-mount Compose stack (the house pattern on a Docker host) and a
-self-contained Docker image.
+Preferred: immutable GHCR image on a Docker host (fleet IaC pins a SemVer tag). Tag-gated CI
+builds `ghcr.io/skyphusion-labs/sidvicious:<version>` on `v*.*.*` tags.
 
-### Compose stack (Docker host, bind-mount)
-
-The stack runs `node:24` against the repo bind-mounted at `/app`, doing `npm ci` then
-`node bot.mjs` on every start. Env is wired from `stacks/.env`.
+### GHCR image (recommended)
 
 ```bash
-# one-time: clone + secrets on the deploy host
-ssh <deploy-user>@<deploy-host> "
-  cd ~/dev && git clone git@github.com:SkyPhusion/SidVicious_exe.git
-  cp ~/dev/SidVicious_exe/.env.example ~/dev/SidVicious_exe/stacks/.env   # then fill it in
-"
-
-# deploy / redeploy after code changes
-rsync -az <repo-checkout>/ <deploy-user>@<deploy-host>:~/dev/SidVicious_exe/ \
-  --exclude node_modules --exclude .git --exclude stacks/.env --exclude .env
-ssh <deploy-user>@<deploy-host> "cd ~/dev/SidVicious_exe/stacks && docker compose -p sidvicious -f compose.prod.yml up -d --force-recreate sidvicious"
-
-# logs
-ssh <deploy-user>@<deploy-host> "docker compose -p sidvicious -f ~/dev/SidVicious_exe/stacks/compose.prod.yml logs -f"
+# pin version in compose, secrets in on-box .env (0600)
+docker compose -p sidvicious \
+  -f /path/to/compose.yaml \
+  --env-file /path/to/.env \
+  pull && docker compose -p sidvicious -f /path/to/compose.yaml --env-file /path/to/.env up -d
 ```
 
-The deploy, redeploy, and logs commands are also kept in the header of `stacks/compose.prod.yml`.
+Repo Dockerfile copies `bot.mjs`, `ssrf-guard.mjs`, and `lib/` (`node:24-slim`, non-root).
 
-### Standalone image (Dockerfile)
-
-For a buildable, portable image (no repo bind-mount), use the included `Dockerfile`
-(`node:24-slim`, runtime deps only, non-root `node` user):
+### Local / standalone image
 
 ```bash
 cp .env.example stacks/.env          # fill in values
@@ -150,6 +153,11 @@ docker build -t sidvicious .
 docker run -d --name sidvicious --restart unless-stopped --env-file stacks/.env sidvicious
 docker logs -f sidvicious
 ```
+
+### Bind-mount Compose (dev)
+
+`stacks/compose.prod.yml` runs `node:24` against a repo bind-mount (`npm ci` then `node bot.mjs`).
+Useful for development; production prefers the GHCR pin above.
 
 ---
 
@@ -159,15 +167,18 @@ docker logs -f sidvicious
 |----------|----------|-------------|
 | `DISCORD_TOKEN` | yes | Discord application token |
 | `CF_ACCOUNT_ID` | yes* | Cloudflare account ID |
-| `CF_API_TOKEN` | yes* | API token (alias: `CF_AIG_TOKEN`) |
+| `CF_API_TOKEN` | yes* | AI Gateway Run token for chat (alias: `CF_AIG_TOKEN`) |
 | `CF_AIG_GATEWAY_ID` | no | Gateway name (default: `skyphusion-llm`) |
 | `DISCORD_MODEL` | no | Chat model (default: `anthropic/claude-sonnet-4-6`) |
 | `DISCORD_CHANNEL_IDS` | no | Channels to listen in (empty = DMs + @mentions) |
-| `CF_D1_DATABASE_ID` | no | D1 database for session persistence |
-| `SEARCH_WORKER_URL` | no | Search Worker URL |
-| `SEARCH_SECRET` | no | Search Worker auth secret |
+| `CF_D1_DATABASE_ID` | no | D1 database for sessions (with token + account) |
+| `CF_D1_TOKEN` | no | D1 token if different from `CF_API_TOKEN` |
+| `SEARCH_WORKER_URL` | no† | Search Worker base URL |
+| `SEARCH_SECRET` | no† | Shared secret (`X-Search-Secret`) |
+| `OLLAMA_BASE_URL` | no | Ollama OpenAI-compatible base when CF chat unset |
 
-\* Omit both `CF_API_TOKEN` and `CF_ACCOUNT_ID` to use ollama instead (chat only, no images).
+\* Omit both `CF_API_TOKEN` and `CF_ACCOUNT_ID` to use ollama instead (chat only).  
+† Recommended for search tools and default `@cf/*` image generation.
 
 ---
 

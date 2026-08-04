@@ -9,10 +9,10 @@ of the two.
 | Var | Required? | Missing/invalid behavior |
 |-----|-----------|--------------------------|
 | `DISCORD_TOKEN` | **required** | process exits 1 at startup (fail closed) |
-| `CF_ACCOUNT_ID` + `CF_API_TOKEN` | for Claude + images | chat falls back to ollama (`OLLAMA_BASE_URL`, default localhost); image commands reply "not configured" |
+| `CF_ACCOUNT_ID` + `CF_API_TOKEN` | for Claude chat | chat falls back to ollama (`OLLAMA_BASE_URL`, default localhost). Token is an AI Gateway **Run** token (not account `/ai/run`) |
 | `CF_AIG_GATEWAY_ID` | optional | defaults to `skyphusion-llm` |
-| `CF_D1_DATABASE_ID` | optional | sessions are in-memory only (lost on restart); D1 errors NEVER break a reply (load/save catch + log) |
-| `SEARCH_WORKER_URL` + `SEARCH_SECRET` | optional | search/research/fetch/knowledge tools are not offered to the model; `!learn` replies "not configured" |
+| `CF_D1_DATABASE_ID` + token + account | optional | all three required for D1; otherwise in-memory only. D1 errors NEVER break a reply (load/save catch + log) |
+| `SEARCH_WORKER_URL` + `SEARCH_SECRET` | recommended | without them: search/research/fetch/knowledge tools off; `!learn` "not configured"; `@cf/*` images fall back to account `/ai/run` (401 with Run tokens) |
 | `DISCORD_CHANNEL_IDS` | optional | empty = the roadie answers ONLY DMs and @mentions |
 | `DISCORD_HISTORY` | optional | rolling depth in exchange pairs, default 20 |
 

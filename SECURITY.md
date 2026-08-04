@@ -42,7 +42,10 @@ Out of scope:
 ## Security Design Notes
 
 - **Secrets are never committed.** The `.gitignore` excludes `stacks/.env` and all credential files. Cloudflare Worker secrets are set via `wrangler secret put`, not in `wrangler.toml`.
-- **`X-Search-Secret` header** authenticates all requests from the roadie to the `sidvicious-search` Worker. This should be a long random string.
-- **Cloudflare API token** (`CF_API_TOKEN`) authenticates all requests to `api.cloudflare.com` for chat and image generation.
-- **D1 session data** is scoped per Discord channel ID. No cross-channel reads occur.
-- **Image attachments** are fetched directly from Discord's CDN over HTTPS, base64-encoded for the current turn, and never persisted to disk or D1.
+- **`X-Search-Secret` header** authenticates all non-health requests from the roadie to the `sidvicious-search` Worker (search, fetch, knowledge, and `@cf/*` image gen). Use a long random string.
+- **Chat token** (`CF_API_TOKEN` / `CF_AIG_TOKEN`) is an AI Gateway Run (or Unified Billing) token for the Anthropic gateway path. It is **not** a full account API token: account `/ai/run` returns 401 with Run tokens alone.
+- **Workers AI images** (`@cf/*`) are generated on the search Worker via the `AI` binding (not with the Run token against `api.cloudflare.com`).
+- **D1 session data** is scoped per Discord channel ID. No cross-channel reads occur. D1 is only used when account, database id, and token are all configured.
+- **Outbound fetches** (attachment / page helpers) use DNS-pinned SSRF guards (`ssrf-guard.mjs` on the roadie; `search-worker/src/ssrf.ts` on the Worker).
+- **Image attachments** from Discord are fetched over HTTPS, base64-encoded for the current turn, and never persisted to disk or D1.
+- **User-facing errors** are scrubbed of configured secrets (`sanitizeErrorMessage`).
