@@ -7,11 +7,12 @@ Guidance for Claude Code (and the crew) working in this repo.
 **SidVicious_exe: a punk rock Discord roadie for web search and image generation.** Talk to it
 naturally, ask it to look things up, or have it generate visuals. Chat routes through the Cloudflare
 AI Gateway native Anthropic path (Claude) with an AI Gateway **Run** token. Default `@cf/*` images
-go through the search Worker **AI binding** (`POST /image`); account `/ai/run` is only for
-third-party gateway models with a real account API token. The punk personality is intentional:
-direct, honest, useful, no corporate sycophancy. Currently **v0.2.6**, published to npm as
-`@skyphusion/sidvicious-exe`. Roadie runs as a Docker/GHCR stack on the deploy host; search is a
-Cloudflare Worker (`sidvicious-search`).
+go through the search Worker **AI binding** (`POST /image` on `sidvicious-search`); do **not** send
+default Workers AI image gen through account `/ai/run` with a Run token. Account `/ai/run` is only
+for third-party gateway models with a real account API token. The punk personality is intentional:
+direct, honest, useful, no corporate sycophancy. Version is root **`package.json`** (trust the pin +
+tags); published to npm as `@skyphusion/sidvicious-exe`. Roadie runs as a Docker/GHCR stack on the
+deploy host; search is a Cloudflare Worker (`sidvicious-search`).
 
 ## Structure
 
