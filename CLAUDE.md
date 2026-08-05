@@ -129,7 +129,7 @@ Plain chat (and `@mention` / DM) is handled directly; the channels the roadie li
   history never rewritten. On the crew host the `conrad` user is the god process and commits as
   `Mackaye <mackaye@skyphusion.org>`.)
 - Cross-project operating context lives in the main auto-memory
-  (`~/.claude/projects/-home-conrad/memory/`); load it before acting.
+  (`~/.claude/projects/shared auto-memory store (see global CLAUDE)`); load it before acting.
 
 ## Commits & versioning
 
