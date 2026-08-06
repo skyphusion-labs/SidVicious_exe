@@ -2,12 +2,12 @@
 
 **Effective date:** 2026-06-14
 **Service:** SidVicious_exe, a Discord application
-**Operator:** Conrad Rockenhaus (SkyPhusion), the operator of the official hosted instance.
+**Operator:** whoever runs an instance. Skyphusion Labs ships the code and does **not** operate SidVicious_exe as a service (self-host / crew-only; not a public hosted product).
 
 This policy explains what data SidVicious_exe processes, why, who it is shared with, and how long it is
 kept. SidVicious_exe is open-source software (AGPL-3.0); anyone may run their own instance, in which case
-that operator is the data controller for their instance and this policy describes the
-SkyPhusion-operated instance.
+that operator is the data controller for their instance. This document is a reference policy
+for operators; Skyphusion Labs does not run a public hosted instance of this product.
 
 ## What SidVicious_exe is
 
