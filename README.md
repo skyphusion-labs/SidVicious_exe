@@ -24,7 +24,7 @@ We call it a roadie, not a bot. A bot is a vending machine; this is a collaborat
 - **Slash commands** -- `/image`, `/model`, `/learn`, `/reset`
 - **npm package** -- `@skyphusion/sidvicious-exe` (roadie only; ships `bot.mjs`, `ssrf-guard.mjs`, `lib/`)
 
-Current release: **v0.2.6**.
+Current release: **v0.2.7**.
 
 ---
 

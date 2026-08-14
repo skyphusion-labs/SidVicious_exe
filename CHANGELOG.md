@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.7
+
+PATCH: Cloudflare toolchain, @anthropic-ai/sdk, puppeteer, and undici override on main since v0.2.6. Tag deploys sidvicious-search and rebuilds the GHCR roadie image.
+
+
 ## v0.2.6
 
 PATCH (image gen 401 fix):
