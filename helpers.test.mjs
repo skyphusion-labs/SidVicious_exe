@@ -7,6 +7,7 @@ import {
   MULTIPART_IMAGE_MODELS,
   anthropicBaseFromGatewayEndpoint,
   buildGatewayCompatEndpoint,
+  createSessionStore,
   flattenForOllama,
   formatModelList,
   freshSession,
@@ -132,5 +133,84 @@ describe('sanitizeErrorMessage (#39: no account id / secrets into Discord replie
       .toBe('fetch failed: https://gateway.ai.cloudflare.com/v1/[redacted]/gw: 401 token [redacted]');
     expect(sanitizeErrorMessage(undefined, ['x'])).toBe('');
     expect(sanitizeErrorMessage('clean', [])).toBe('clean');
+  });
+});
+
+describe('createSessionStore (a failed D1 read must never clobber saved history)', () => {
+  const saved = { history: [{ role: 'user', content: 'real' }, { role: 'assistant', content: 'history' }], imageModel: 'm' };
+  const row = { data: JSON.stringify(saved) };
+  const isWrite = (sql) => /^\s*INSERT/i.test(sql);
+
+  /** query fake: SELECT fails while `state.down`, otherwise returns `state.rows`; INSERTs are recorded. */
+  function harness(rows = [row]) {
+    const state = { down: false, rows, writes: [], reads: 0 };
+    const query = async (sql, params) => {
+      if (isWrite(sql)) { state.writes.push(params); return []; }
+      state.reads++;
+      if (state.down) throw new Error('D1 503');
+      return state.rows;
+    };
+    const logs = [];
+    const store = createSessionStore({ query, configured: () => true, log: (m) => logs.push(m) });
+    return { state, store, logs };
+  }
+
+  it('loads a persisted session and writes it back on save', async () => {
+    const { state, store } = harness();
+    const s = await store.get('c1');
+    expect(s.history).toHaveLength(2);
+    await store.save('c1');
+    expect(state.writes).toHaveLength(1);
+  });
+
+  it('treats a missing row as an absent session: fresh history, and save persists it', async () => {
+    const { state, store } = harness([]);
+    const s = await store.get('c1');
+    expect(s.history).toEqual([]);
+    await store.save('c1');
+    expect(state.writes).toHaveLength(1);
+  });
+
+  it('serves a working in-memory session on a failed read but does not write it over the real row', async () => {
+    const { state, store, logs } = harness();
+    state.down = true;
+    const s = await store.get('c1');
+    expect(s.history).toEqual([]);
+    s.history.push({ role: 'user', content: 'x' });
+    await store.save('c1');
+    expect(state.writes).toHaveLength(0);
+    expect(logs.some((m) => /not saving/i.test(m))).toBe(true);
+  });
+
+  it('retries the read after a failure and resumes from the persisted history once D1 is back', async () => {
+    const { state, store } = harness();
+    state.down = true;
+    await store.get('c1');
+    state.down = false;
+    const s = await store.get('c1');
+    expect(s.history).toEqual(saved.history);
+    await store.save('c1');
+    expect(state.writes).toHaveLength(1);
+    expect(JSON.parse(state.writes[0][1]).history).toEqual(saved.history);
+  });
+
+  it('lets an explicit reset overwrite the row even after a failed read', async () => {
+    const { state, store } = harness();
+    state.down = true;
+    await store.get('c1');
+    store.reset('c1');
+    await store.save('c1');
+    expect(state.writes).toHaveLength(1);
+    expect(JSON.parse(state.writes[0][1]).history).toEqual([]);
+  });
+
+  it('does not query D1 for reads when it is not configured, and does not treat that as a failed read', async () => {
+    const state = { reads: 0, writes: 0 };
+    const query = async (sql) => { if (isWrite(sql)) state.writes++; else state.reads++; return []; };
+    const store = createSessionStore({ query, configured: () => false, log: () => {} });
+    await store.get('c1');
+    await store.save('c1');
+    expect(state.reads).toBe(0);
+    expect(state.writes).toBe(1);
   });
 });

@@ -47,11 +47,10 @@ import {
   MULTIPART_IMAGE_MODELS,
   anthropicBaseFromGatewayEndpoint,
   buildGatewayCompatEndpoint,
+  createSessionStore,
   flattenForOllama,
   formatModelList,
-  freshSession,
   normalizeChatModel,
-  normalizeSession,
   resolveImageModel,
   sanitizeErrorMessage,
   splitMessage,
@@ -145,8 +144,6 @@ log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=
 // Session state -- persisted in Cloudflare D1 (REST API), cached in-memory
 // ---------------------------------------------------------------------------
 
-const sessions = new Map();
-
 async function d1Query(sql, params = []) {
   if (!CFG.d1Token || !CFG.d1DatabaseId || !CFG.d1AccountId) {
     throw new Error('D1 not configured (need CF_D1_DATABASE_ID + account + token)');
@@ -183,40 +180,13 @@ async function initD1() {
   }
 }
 
-async function loadSession(channelId) {
-  try {
-    const rows = await d1Query('SELECT data FROM sessions WHERE channel_id = ?', [channelId]);
-    if (rows.length === 0) return null;
-    const data = JSON.parse(rows[0].data);
-    sessions.set(channelId, data);
-    return data;
-  } catch (e) {
-    log(`ERROR loading session ${channelId}: ${e.message}`);
-    return null;
-  }
-}
-
-async function getSession(channelId) {
-  if (!sessions.has(channelId)) {
-    const loaded = await loadSession(channelId);
-    if (!loaded) sessions.set(channelId, freshSession());
-  }
-  return normalizeSession(sessions.get(channelId));
-}
-
-async function saveSession(channelId) {
-  try {
-    const session = sessions.get(channelId);
-    if (!session) return;
-    const now = new Date().toISOString();
-    await d1Query(
-      'INSERT INTO sessions (channel_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(channel_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at',
-      [channelId, JSON.stringify(session), now],
-    );
-  } catch (e) {
-    log(`ERROR saving session ${channelId}: ${e.message}`);
-  }
-}
+const sessionStore = createSessionStore({
+  query:      d1Query,
+  configured: () => Boolean(CFG.d1Token && CFG.d1DatabaseId && CFG.d1AccountId),
+  log,
+});
+const getSession  = (channelId) => sessionStore.get(channelId);
+const saveSession = (channelId) => sessionStore.save(channelId);
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -701,7 +671,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       case 'reset': {
-        sessions.set(channelId, freshSession());
+        sessionStore.reset(channelId);
         await saveSession(channelId);
         log(`[${channelId}] session reset by ${authorName}`);
         await interaction.reply('Memory wiped. Fresh start. What do you want?');
@@ -745,7 +715,7 @@ client.on(Events.MessageCreate, async (message) => {
   log(`[${channelLabel}] ${authorName}: ${rawText.slice(0, 120)}${hasImages ? ` [+${message.attachments.size} image(s)]` : ''}`);
 
   if (rawText === '!reset') {
-    sessions.set(channelId, freshSession());
+    sessionStore.reset(channelId);
     await saveSession(channelId);
     log(`[${channelId}] reset by ${authorName}`);
     await message.reply('Memory wiped. Fresh start. What do you want?').catch(() => {});
