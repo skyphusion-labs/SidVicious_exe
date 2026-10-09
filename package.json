@@ -25,7 +25,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.120",
+    "@anthropic-ai/sdk": "^0.131",
     "discord.js": "^14"
   },
   "overrides": {
