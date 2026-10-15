@@ -1,17 +1,23 @@
 name: publish-npm
 
-# Publish @skyphusion/sidvicious-exe to npm when a GitHub Release is published
-# (the org distribution pattern: .github/brand/distribution.md). Guard: the
-# release tag must match package.json's version, so a mistagged release cannot
-# ship the wrong artifact. Public repo -> GitHub-hosted runner (fork-safe);
-# secret NPM_TOKEN is the org automation token.
+# Auth is npm trusted publishing. npmjs.com trusts this filename
+# (publish-npm.yml) and no GitHub environment. The publish job uses the
+# Actions OIDC token and does not read NPM_TOKEN. npm CLI 11.5.1 or newer
+# performs the exchange, so the publish step installs npm 11 first.
+# A GitHub Release publishes the package. workflow_dispatch is a trust
+# probe only: it proves the publisher against the version already on npm
+# and never publishes a new version. The release tag must match
+# package.json's version, so a mistagged release cannot ship the wrong
+# artifact. Public repo, GitHub-hosted runner.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: publish-npm-sidvicious
@@ -19,6 +25,9 @@ concurrency:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,11 +52,53 @@ jobs:
           node --check bot.mjs
           npx vitest run
       - name: Version guard (tag == package.json version)
+        if: github.event_name == 'release'
         run: |
           PKG_V="v$(node -p "require('./package.json').version")"
           if [ "$PKG_V" != "$GITHUB_REF_NAME" ]; then
             echo "release tag $GITHUB_REF_NAME != package version $PKG_V"; exit 1
           fi
-      - run: npm publish --access public
+      - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUST_PROBE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          npm install -g npm@^11.5.1
+          npm --version
+          pkg="$(node -p "require('./package.json').name")"
+          ver="$(node -p "require('./package.json').version")"
+          probe="${TRUST_PROBE:-false}"
+          on_registry=0
+          if npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
+            on_registry=1
+          fi
+          # A probe must not mint a version. Rewrite the checkout's version to
+          # the one already on npm, then let publish refuse it. The refusal
+          # happens after the OIDC exchange and before the upload.
+          if [ "$probe" = "true" ] && [ "$on_registry" != "1" ]; then
+            ver="$(npm view "$pkg" version)"
+            node -e 'const fs=require("fs"); const p="package.json"; const j=JSON.parse(fs.readFileSync(p,"utf8")); j.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(j,null,2)+"\n");' "$ver"
+            on_registry=1
+          fi
+          if [ "$on_registry" = "1" ]; then
+            set +e
+            # prepublishOnly runs before the OIDC exchange. A probe that
+            # rewrites package.json can fail that script before npm exchanges
+            # the token. Ignore scripts on this call only. The real publish
+            # below still runs them.
+            out="$(npm publish --access public --provenance --ignore-scripts 2>&1)"
+            rc=$?
+            set -e
+            printf '%s\n' "$out"
+            if printf '%s\n' "$out" | grep -F -q 'previously published versions'; then
+              echo "Trusted publisher accepted for ${pkg}@${ver} (already on the registry, nothing new published)"
+              exit 0
+            fi
+            echo "::error::trusted publisher was not accepted for ${pkg} (npm publish exit ${rc})" >&2
+            exit 1
+          fi
+          if [ "$probe" = "true" ]; then
+            echo "::error::trust probe refused to publish a new version of ${pkg}" >&2
+            exit 1
+          fi
+          npm publish --access public --provenance
