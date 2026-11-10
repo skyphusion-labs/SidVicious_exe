@@ -5,8 +5,8 @@ Guidance for Claude Code (and the crew) working in this repo.
 ## What this is
 
 **SidVicious_exe: a punk rock Discord roadie for web search and image generation.** Talk to it
-naturally, ask it to look things up, or have it generate visuals. Chat routes through the Cloudflare
-AI Gateway native Anthropic path (Claude) with an AI Gateway **Run** token. Default `@cf/*` images
+naturally, ask it to look things up, or have it generate visuals. Chat is Claude, either direct
+(`ANTHROPIC_API_KEY`) or through the AI Gateway native Anthropic path with a **Run** token. Default `@cf/*` images
 go through the search Worker **AI binding** (`POST /image` on `sidvicious-search`); do **not** send
 default Workers AI image gen through account `/ai/run` with a Run token. Account `/ai/run` is only
 for third-party gateway models with a real account API token. The punk personality is intentional:
@@ -23,6 +23,7 @@ package.json             Roadie deps; scripts: roadie, bot, test
 package.test.mjs         Packaging contract (ssrf-guard in files + Dockerfile)
 bot.test.ts              Vitest boot smoke
 helpers.test.mjs         Vitest unit tests for lib/helpers.mjs
+anthropic-route.test.mjs Vitest: SDK 1.x wire headers for direct and gateway chat
 .env.example             Env template
 Dockerfile               node:24-slim; copies bot.mjs, ssrf-guard.mjs, lib/
 docs/
@@ -68,7 +69,8 @@ on version tags via `image.yml` (`v*.*.*`).
 
 | Feature | How it authenticates | Endpoint / binding |
 |---------|----------------------|--------------------|
-| Chat (Claude) | AI Gateway **Run** token (`CF_API_TOKEN` / `CF_AIG_TOKEN`) | `…/anthropic/v1/messages` |
+| Chat, direct | `ANTHROPIC_API_KEY`, no `CF_API_TOKEN` | `https://api.anthropic.com/v1/messages` (`Authorization: Bearer`) |
+| Chat, gateway | AI Gateway **Run** token as `cf-aig-authorization`. Provider key, if supplied, is `x-api-key` only | `…/anthropic/v1/messages` |
 | Images `@cf/*` | Search Worker `X-Search-Secret` + Worker **AI** binding | `POST {SEARCH_WORKER_URL}/image` |
 | Images third-party | Account API token with Workers AI (not a Run token alone) | `POST …/accounts/{id}/ai/run` |
 | D1 sessions | Token + `CF_D1_DATABASE_ID` + account | D1 REST `/query` |
@@ -78,9 +80,9 @@ Default gateway name is `skyphusion-llm` (`CF_AIG_GATEWAY_ID`).
 
 ## Architecture
 
-- **Chat is Claude via the AI Gateway** (`anthropic/claude-sonnet-4-6` by default when a CF token is
-  set; `DISCORD_MODEL` overrides). With no CF token it falls back to ollama (`OLLAMA_BASE_URL`, chat
-  only).
+- **Chat is Claude** (`claude-sonnet-4-6` by default; `DISCORD_MODEL` overrides). A Cloudflare
+  token routes through the AI Gateway. `ANTHROPIC_API_KEY` with no Cloudflare token calls
+  `api.anthropic.com`. With neither, chat falls back to ollama (`OLLAMA_BASE_URL`).
 - **Tool-use loop**: `web_search` (Brave), `research` (Tavily), `fetch_page` (Browser Rendering),
   `search_knowledge` (Vectorize), `generate_image` -- search tools and default images go through
   `sidvicious-search` (`X-Search-Secret`).

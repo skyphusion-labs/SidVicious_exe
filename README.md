@@ -15,7 +15,7 @@ We call it a roadie, not a bot. A bot is a vending machine; this is a collaborat
 ## Features
 
 - **Punk rock roadie personality** -- raw, direct, irreverent. Helpful underneath the leather jacket.
-- **Claude via Cloudflare** -- Anthropic SDK on the AI Gateway native Anthropic path (`…/anthropic`); ollama fallback when `CF_API_TOKEN` is unset
+- **Claude** -- Anthropic SDK, either direct (`ANTHROPIC_API_KEY` to `api.anthropic.com`) or through the AI Gateway native Anthropic path (`…/anthropic`) when `CF_API_TOKEN` is set; ollama fallback when neither is set
 - **Vision input** -- paste images into the channel; Claude reads them (up to 3 per message, 4 MB each)
 - **Web search + deep research** -- Brave Search, Tavily, and Cloudflare Browser Rendering via the search Worker
 - **Knowledge base** -- `!learn <text or URL>` indexes references into Vectorize (channel-scoped)
@@ -83,9 +83,11 @@ Create an application at the [Discord Developer Portal](https://discord.com/deve
 wrangler whoami          # copy account id -> CF_ACCOUNT_ID
 ```
 
-For **chat**, use an **AI Gateway Run token** (or Unified Billing token) as `CF_API_TOKEN`
-(alias `CF_AIG_TOKEN`). That is the token you use with `cf-aig-authorization` on the gateway.
-Default gateway name: `skyphusion-llm` (`CF_AIG_GATEWAY_ID`).
+For **chat through the gateway**, use an **AI Gateway Run token** (or Unified Billing token) as `CF_API_TOKEN`
+(alias `CF_AIG_TOKEN`). That token is `cf-aig-authorization`. It is not sent as `Authorization`.
+Default gateway name: `skyphusion-llm` (`CF_AIG_GATEWAY_ID`). Set `ANTHROPIC_API_KEY` as well only
+when the gateway should use that provider key (`x-api-key`). For **direct Anthropic**, set
+`ANTHROPIC_API_KEY` and leave `CF_API_TOKEN` empty.
 
 For **session persistence**, create D1 and a token with **D1 Edit** (or a dedicated `CF_D1_TOKEN`):
 
@@ -166,8 +168,9 @@ Useful for development; production prefers the GHCR pin above.
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DISCORD_TOKEN` | yes | Discord application token |
+| `ANTHROPIC_API_KEY` | no | Direct `api.anthropic.com` when `CF_API_TOKEN` is unset. With a gateway token, sent as `x-api-key` |
 | `CF_ACCOUNT_ID` | yes* | Cloudflare account ID |
-| `CF_API_TOKEN` | yes* | AI Gateway Run token for chat (alias: `CF_AIG_TOKEN`) |
+| `CF_API_TOKEN` | yes* | AI Gateway Run token for chat (alias: `CF_AIG_TOKEN`). Sent as `cf-aig-authorization` |
 | `CF_AIG_GATEWAY_ID` | no | Gateway name (default: `skyphusion-llm`) |
 | `DISCORD_MODEL` | no | Chat model (default: `anthropic/claude-sonnet-4-6`) |
 | `DISCORD_CHANNEL_IDS` | no | Channels to listen in (empty = DMs + @mentions) |
@@ -177,7 +180,7 @@ Useful for development; production prefers the GHCR pin above.
 | `SEARCH_SECRET` | no† | Shared secret (`X-Search-Secret`) |
 | `OLLAMA_BASE_URL` | no | Ollama OpenAI-compatible base when CF chat unset |
 
-\* Omit both `CF_API_TOKEN` and `CF_ACCOUNT_ID` to use ollama instead (chat only).  
+\* Omit `ANTHROPIC_API_KEY`, `CF_API_TOKEN`, and `CF_ACCOUNT_ID` to use ollama instead (chat only). Direct Anthropic needs only `ANTHROPIC_API_KEY`.  
 † Recommended for search tools and default `@cf/*` image generation.
 
 ---

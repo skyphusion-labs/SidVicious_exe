@@ -11,8 +11,11 @@ import {
   flattenForOllama,
   formatModelList,
   freshSession,
+  ANTHROPIC_DIRECT_BASE_URL,
+  GATEWAY_STORED_KEY_PLACEHOLDER,
   normalizeChatModel,
   normalizeSession,
+  resolveChatRoute,
   resolveImageModel,
   sanitizeErrorMessage,
   splitMessage,
@@ -33,6 +36,71 @@ describe('gateway endpoint building', () => {
       expect(anthropicBaseFromGatewayEndpoint(`https://gw.test/v1/a/g${suffix}`))
         .toBe('https://gw.test/v1/a/g/anthropic');
     }
+  });
+});
+
+describe('resolveChatRoute', () => {
+  it('calls Anthropic directly when only ANTHROPIC_API_KEY is set', () => {
+    const route = resolveChatRoute({
+      anthropicApiKey: 'sk-ant-test',
+      model: 'anthropic/claude-sonnet-4-6',
+    });
+    expect(route.mode).toBe('anthropic-direct');
+    expect(route.model).toBe('claude-sonnet-4-6');
+    expect(route.clientOptions).toEqual({
+      apiKey: 'sk-ant-test',
+      baseURL: ANTHROPIC_DIRECT_BASE_URL,
+    });
+  });
+
+  it('uses the gateway stored-key path for a Cloudflare token alone', () => {
+    const route = resolveChatRoute({
+      cfApiToken: 'cf-token',
+      accountId: 'acct',
+      gatewayId: 'skyphusion-llm',
+    });
+    expect(route.mode).toBe('cf-gateway-anthropic');
+    expect(route.model).toBe('claude-sonnet-4-6');
+    expect(route.clientOptions.baseURL)
+      .toBe('https://gateway.ai.cloudflare.com/v1/acct/skyphusion-llm/anthropic');
+    expect(route.clientOptions.apiKey).toBe(GATEWAY_STORED_KEY_PLACEHOLDER);
+    expect(route.clientOptions.defaultHeaders).toEqual({
+      'cf-aig-authorization': 'Bearer cf-token',
+      Authorization: null,
+      'x-api-key': null,
+    });
+  });
+
+  it('sends the Anthropic key as x-api-key when both credentials are set', () => {
+    const route = resolveChatRoute({
+      anthropicApiKey: 'sk-ant-test',
+      cfApiToken: 'cf-token',
+      gatewayEndpoint: 'https://gateway.ai.cloudflare.com/v1/acct/gw/compat/chat/completions',
+      model: 'claude-sonnet-4-6',
+    });
+    expect(route.mode).toBe('cf-gateway-with-key');
+    expect(route.clientOptions.baseURL)
+      .toBe('https://gateway.ai.cloudflare.com/v1/acct/gw/anthropic');
+    expect(route.clientOptions.defaultHeaders).toEqual({
+      'cf-aig-authorization': 'Bearer cf-token',
+      Authorization: null,
+      'x-api-key': 'sk-ant-test',
+    });
+  });
+
+  it('falls through to direct Anthropic when a Cloudflare token has no gateway URL', () => {
+    const route = resolveChatRoute({
+      anthropicApiKey: 'sk-ant-test',
+      cfApiToken: 'cf-token',
+    });
+    expect(route.mode).toBe('anthropic-direct');
+    expect(route.clientOptions.baseURL).toBe(ANTHROPIC_DIRECT_BASE_URL);
+  });
+
+  it('uses ollama when neither chat credential is set', () => {
+    const route = resolveChatRoute({});
+    expect(route).toEqual({ mode: 'ollama', model: 'qwen3:8b', clientOptions: null });
+    expect(resolveChatRoute({ model: 'llama3' }).model).toBe('llama3');
   });
 });
 

@@ -9,7 +9,8 @@ of the two.
 | Var | Required? | Missing/invalid behavior |
 |-----|-----------|--------------------------|
 | `DISCORD_TOKEN` | **required** | process exits 1 at startup (fail closed) |
-| `CF_ACCOUNT_ID` + `CF_API_TOKEN` | for Claude chat | chat falls back to ollama (`OLLAMA_BASE_URL`, default localhost). Token is an AI Gateway **Run** token (not account `/ai/run`) |
+| `ANTHROPIC_API_KEY` | for direct Claude | calls `api.anthropic.com`. If `CF_API_TOKEN` and a gateway URL are also set, the key is sent as `x-api-key` on the gateway path instead |
+| `CF_ACCOUNT_ID` + `CF_API_TOKEN` | for gateway Claude | token is `cf-aig-authorization` (AI Gateway Run or Unified Billing), not an `Authorization` bearer and not account `/ai/run`. No Anthropic key means the gateway's stored credential. Missing both this and `ANTHROPIC_API_KEY`: ollama |
 | `CF_AIG_GATEWAY_ID` | optional | defaults to `skyphusion-llm` |
 | `CF_D1_DATABASE_ID` + token + account | optional | all three required for D1; otherwise in-memory only. D1 errors NEVER break a reply (load/save catch + log) |
 | `SEARCH_WORKER_URL` + `SEARCH_SECRET` | recommended | without them: search/research/fetch/knowledge tools off; `!learn` "not configured"; `@cf/*` images fall back to account `/ai/run` (401 with Run tokens) |
