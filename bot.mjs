@@ -15,15 +15,19 @@
 //   DISCORD_HISTORY             rolling history depth in exchange pairs (default 20)
 //   DISCORD_LOG                 tee logs to this file path (optional)
 //
-//   Cloudflare (one token for chat, images, and optional D1):
+//   Chat, one of:
+//   ANTHROPIC_API_KEY           direct api.anthropic.com (used when no CF chat token)
+//   CF_API_TOKEN                AI Gateway Run token (alias: CF_AIG_TOKEN). With
+//                               CF_ACCOUNT_ID or CF_GATEWAY_ENDPOINT, chat goes
+//                               through the gateway. If ANTHROPIC_API_KEY is also
+//                               set, that key is sent as x-api-key.
 //   CF_ACCOUNT_ID               Cloudflare account ID
-//   CF_API_TOKEN                API token with AI Gateway permission (alias: CF_AIG_TOKEN)
 //   CF_AIG_GATEWAY_ID           AI Gateway name (default: skyphusion-llm)
 //   CF_GATEWAY_ENDPOINT         Full compat URL (optional; built from account + gateway id)
 //   CF_D1_DATABASE_ID           D1 database ID (optional, for session persistence)
 //   CF_D1_TOKEN                 D1 token if different from CF_API_TOKEN (optional)
 //
-//   OLLAMA_BASE_URL             ollama fallback when CF_API_TOKEN is unset
+//   OLLAMA_BASE_URL             ollama fallback when neither chat credential is set
 //   SEARCH_WORKER_URL           search Worker base URL (optional)
 //   SEARCH_SECRET               shared secret for X-Search-Secret header (optional)
 //
@@ -45,12 +49,10 @@ import {
   DEFAULT_IMAGE_MODEL,
   IMAGE_MODELS,
   MULTIPART_IMAGE_MODELS,
-  anthropicBaseFromGatewayEndpoint,
-  buildGatewayCompatEndpoint,
   createSessionStore,
   flattenForOllama,
   formatModelList,
-  normalizeChatModel,
+  resolveChatRoute,
   resolveImageModel,
   sanitizeErrorMessage,
   splitMessage,
@@ -84,9 +86,10 @@ if (!process.env.DISCORD_TOKEN) {
 const CFG = {
   token:          process.env.DISCORD_TOKEN,
   ollamaBase:     process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/v1',
-  model:          process.env.DISCORD_MODEL   ?? (process.env.CF_API_TOKEN || process.env.CF_AIG_TOKEN ? 'anthropic/claude-sonnet-4-6' : 'qwen3:8b'),
+  model:          process.env.DISCORD_MODEL ?? '',
   channelIds:     new Set((process.env.DISCORD_CHANNEL_IDS ?? '').split(',').filter(Boolean)),
   historyLen:     parseInt(process.env.DISCORD_HISTORY ?? '20', 10),
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
   cfAccountId:    process.env.CF_ACCOUNT_ID     ?? process.env.CF_D1_ACCOUNT_ID ?? '',
   apiToken:       process.env.CF_API_TOKEN      ?? process.env.CF_AIG_TOKEN ?? '',
   aigGatewayId:   process.env.CF_AIG_GATEWAY_ID ?? 'skyphusion-llm',
@@ -101,36 +104,30 @@ const CFG = {
 const CF_AI_BASE = CFG.cfAccountId
   ? `https://api.cloudflare.com/client/v4/accounts/${CFG.cfAccountId}/ai`
   : '';
-const CF_AI_V1   = CF_AI_BASE ? `${CF_AI_BASE}/v1` : '';
 const CF_AI_RUN  = CF_AI_BASE ? `${CF_AI_BASE}/run` : '';
 
-const gatewayCompatEndpoint = CFG.gatewayEndpoint
-  || buildGatewayCompatEndpoint(CFG.cfAccountId, CFG.aigGatewayId);
-const anthropicBase = gatewayCompatEndpoint
-  ? anthropicBaseFromGatewayEndpoint(gatewayCompatEndpoint)
-  : '';
-const useGatewayAnthropic = Boolean(anthropicBase);
-
-const chatModel = normalizeChatModel(CFG.model, useGatewayAnthropic);
+const chatRoute = resolveChatRoute({
+  anthropicApiKey: CFG.anthropicApiKey,
+  cfApiToken: CFG.apiToken,
+  accountId: CFG.cfAccountId,
+  gatewayId: CFG.aigGatewayId,
+  gatewayEndpoint: CFG.gatewayEndpoint,
+  model: CFG.model,
+});
+const chatModel = chatRoute.model;
 
 // #39 audit: SDK/fetch errors can embed request URLs carrying the account id
 // (the gateway base URL). Scrub configured identifiers from anything echoed
 // into a Discord reply; the raw message still goes to the local log.
-const SENSITIVE_VALUES = [CFG.cfAccountId, CFG.apiToken, CFG.d1Token, CFG.searchSecret].filter(Boolean);
+const SENSITIVE_VALUES = [CFG.cfAccountId, CFG.apiToken, CFG.anthropicApiKey, CFG.d1Token, CFG.searchSecret].filter(Boolean);
 const scrub = (message) => sanitizeErrorMessage(message, SENSITIVE_VALUES);
 
-const anthropic = CFG.apiToken && (useGatewayAnthropic || CF_AI_V1)
-  ? new Anthropic({
-      apiKey:  CFG.apiToken,
-      baseURL: useGatewayAnthropic ? anthropicBase : CF_AI_V1,
-      ...(useGatewayAnthropic ? {} : { defaultHeaders: { 'cf-aig-gateway-id': CFG.aigGatewayId } }),
-    })
-  : null;
+const anthropic = chatRoute.clientOptions ? new Anthropic(chatRoute.clientOptions) : null;
 
 const imageGenReady = Boolean(CFG.apiToken && CFG.cfAccountId);
 // Log a backend label, not the resolved URL: the URL embeds the Cloudflare
 // account ID from the environment (flagged by CodeQL js/clear-text-logging).
-const chatBackend = anthropic ? (useGatewayAnthropic ? 'cf-gateway-anthropic' : 'workers-ai-v1') : 'ollama';
+const chatBackend = chatRoute.mode;
 
 log(`Starting SidVicious_exe: model=${chatModel} backend=${chatBackend} gateway=${CFG.aigGatewayId} images=${imageGenReady ? 'on' : 'off'} channels=${CFG.channelIds.size || 'DMs+mentions only'}`);
 
@@ -224,7 +221,7 @@ async function callOllama(system, conversationMessages) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ollama' },
     body: JSON.stringify({
-      model:    CFG.model,
+      model:    chatModel,
       messages: [{ role: 'system', content: system }, ...messages],
       stream:   false,
     }),
