@@ -11,8 +11,7 @@ go through the search Worker **AI binding** (`POST /image` on `sidvicious-search
 default Workers AI image gen through account `/ai/run` with a Run token. Account `/ai/run` is only
 for third-party gateway models with a real account API token. The punk personality is intentional:
 direct, honest, useful, no corporate sycophancy. Version is root **`package.json`** (trust the pin +
-tags); published to npm as `@skyphusion/sidvicious-exe`. Roadie runs as a Docker/GHCR stack on the
-deploy host; search is a Cloudflare Worker (`sidvicious-search`).
+tags); published to npm as `@skyphusion/sidvicious-exe`. Roadie ships as a Docker/GHCR image (`stacks/compose.prod.yml`) but is currently UNHOSTED: no host runs it (the fleet that did is gone). Search is a Cloudflare Worker (`sidvicious-search`).
 
 ## Structure
 
@@ -61,8 +60,8 @@ imports `bot.mjs` against mocked tokens, and `helpers.test.mjs` unit-tests the p
 `lib/helpers.mjs` (no mocks). CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
 fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `coverage.yml` runs the Vitest
 suite. **`deploy.yml` deploys `sidvicious-search` only on a pushed `v*` tag**, never on a bare
-merge to `main` (main runs CI only). The bot itself is NOT deployed by CI: it is a deliberate
-host-side Docker step on the `<deploy-host>` (`stacks/compose.prod.yml`). GHCR roadie image builds
+merge to `main` (main runs CI only). The bot itself is NOT deployed by CI: it is currently UNHOSTED (no host runs the
+compose stack in `stacks/compose.prod.yml`; the old fleet host is gone). GHCR roadie image builds
 on version tags via `image.yml` (`v*.*.*`).
 
 ## Cloudflare setup
@@ -161,4 +160,4 @@ git push origin vX.Y.Z
 
 3. Confirm `deploy.yml` (and `image.yml` if the image path matches) green.
 4. For npm: `gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes` so `publish-npm.yml` runs.
-5. Bot stack on the deploy host remains a deliberate compose pull/redeploy, not CI.
+5. The bot stack is currently unhosted; there is no host to redeploy until one is stood up (not CI).
