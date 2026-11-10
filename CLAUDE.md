@@ -59,7 +59,7 @@ The bot is dependency-free at parse time, so `node --check bot.mjs` is the gate,
 typechecks (`npm run typecheck`). `npm test` runs the Vitest suite: `bot.test.ts` is a boot smoke that
 imports `bot.mjs` against mocked tokens, and `helpers.test.mjs` unit-tests the pure logic in
 `lib/helpers.mjs` (no mocks). CI is GitHub Actions on GitHub-hosted `ubuntu-latest` (public repo,
-fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `code-coverage.yml` runs the Vitest
+fork-safe): `ci.yml` lints the bot + typechecks `search-worker`; `coverage.yml` runs the Vitest
 suite. **`deploy.yml` deploys `sidvicious-search` only on a pushed `v*` tag**, never on a bare
 merge to `main` (main runs CI only). The bot itself is NOT deployed by CI: it is a deliberate
 host-side Docker step on the `<deploy-host>` (`stacks/compose.prod.yml`). GHCR roadie image builds
